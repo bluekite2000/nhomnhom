@@ -1,0 +1,6851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Tiny Footy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --cyan:   #00e5ff;
+    --purple: #b44fff;
+    --pink:   #ff2d78;
+    --dark:   #050508;
+    --tile:   #0a0a12;
+    --tile2:  #0d0d18;
+  }
+  body {
+    background: var(--dark);
+    background-image: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,229,255,0.06) 0%, transparent 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; font-family: 'Nunito', sans-serif;
+    overflow: hidden; user-select: none; -webkit-user-select: none;
+  }
+  #game-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+  /* HUD */
+  #hud {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; max-width: 340px; padding: 0 6px;
+  }
+  .hud-item { display: flex; flex-direction: column; align-items: center; }
+  .hud-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+    color: rgba(0,229,255,0.45);
+  }
+  .hud-value {
+    font-size: 38px; font-weight: 900; line-height: 1;
+    color: #fff;
+    text-shadow: 0 0 16px var(--cyan), 0 0 40px rgba(0,229,255,0.3);
+  }
+  #game-title {
+    font-size: 13px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* Field */
+  #field-container {
+    position: relative; overflow: hidden; touch-action: none;
+    border: 1px solid rgba(0,229,255,0.18);
+    box-shadow:
+      0 0 0 1px rgba(0,229,255,0.08),
+      0 0 40px rgba(0,229,255,0.12),
+      0 0 80px rgba(0,0,0,0.9),
+      inset 0 0 30px rgba(0,0,20,0.6);
+    border-radius: 3px;
+  }
+  #field-canvas { display: block; }
+
+  /* Hint */
+  #hint {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(255,255,255,0.2); text-align: center;
+  }
+
+  /* Overlays */
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,4,0.88); backdrop-filter: blur(8px);
+    z-index: 10; gap: 10px; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  .overlay.show { opacity: 1; pointer-events: all; }
+
+  .overlay-title {
+    font-size: 44px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+    color: #fff; text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(0,229,255,0.4);
+    line-height: 1;
+  }
+  .overlay-sub {
+    font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* Neon pill buttons */
+  .btn {
+    margin-top: 10px; padding: 14px 40px;
+    background: transparent;
+    border: 2px solid var(--cyan);
+    border-radius: 40px;
+    color: var(--cyan);
+    font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 900;
+    letter-spacing: 3px; text-transform: uppercase; cursor: pointer;
+    box-shadow: 0 0 20px rgba(0,229,255,0.35), inset 0 0 16px rgba(0,229,255,0.08);
+    transition: box-shadow 0.15s, transform 0.1s;
+  }
+  .btn:hover {
+    box-shadow: 0 0 30px rgba(0,229,255,0.6), inset 0 0 20px rgba(0,229,255,0.18);
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-red {
+    border-color: var(--pink); color: var(--pink);
+    box-shadow: 0 0 20px rgba(255,45,120,0.35), inset 0 0 16px rgba(255,45,120,0.08);
+  }
+  #game-btns {
+    display: flex; flex-direction: row; justify-content: center; align-items: center;
+    gap: 16px; width: 100%; max-width: 340px; padding: 8px 0;
+  }
+  .btn-restart {
+    margin-top: 0; padding: 6px 12px;
+    border: 1.5px solid rgba(0,229,255,0.2);
+    border-radius: 10px;
+    background: rgba(0,229,255,0.04);
+    color: rgba(0,229,255,0.45);
+    font-size: 18px; letter-spacing: 0;
+    box-shadow: none;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .btn-restart:hover {
+    border-color: rgba(0,229,255,0.5);
+    color: rgba(0,229,255,0.85);
+    background: rgba(0,229,255,0.08);
+    box-shadow: 0 0 10px rgba(0,229,255,0.15);
+  }
+  #hint-toast {
+    background:rgba(0,0,0,0.82); border:1px solid rgba(255,180,0,0.5);
+    color:rgba(255,200,0,0.9); font-family:'Nunito',sans-serif; font-size:12px;
+    font-weight:700; padding:8px 18px; border-radius:20px; text-align:center;
+    white-space:normal; pointer-events:none; text-align:center;
+    opacity:0; transition:opacity 0.3s;
+    max-width:300px;
+  }
+  #hint-toast.show { opacity:1; }
+
+  /* ── Homepage animations ─────────────────────────────────────────────── */
+  @keyframes orb-float1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(18px,-22px) scale(1.1)} }
+  @keyframes orb-float2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-14px,20px) scale(0.9)} }
+  @keyframes orb-float3 { 0%,100%{transform:translate(0,0) scale(1.05)} 50%{transform:translate(10px,14px) scale(0.95)} }
+  @keyframes ball-spin  { from{transform:rotate(-8deg)} to{transform:rotate(8deg)} }
+  @keyframes ball-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  @keyframes title-glow { 0%,100%{text-shadow:0 0 30px var(--cyan),0 0 60px rgba(0,229,255,0.4)} 50%{text-shadow:0 0 50px var(--cyan),0 0 100px rgba(0,229,255,0.7),0 0 4px #fff} }
+  @keyframes btn-pulse  { 0%,100%{box-shadow:0 0 20px rgba(0,229,255,0.35),inset 0 0 16px rgba(0,229,255,0.08)} 50%{box-shadow:0 0 40px rgba(0,229,255,0.7),inset 0 0 24px rgba(0,229,255,0.18)} }
+  @keyframes scanlines  { from{background-position:0 0} to{background-position:0 100px} }
+  @keyframes divider-glow { 0%,100%{opacity:0.3} 50%{opacity:0.9} }
+
+  .home-orbs { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .orb {
+    position:absolute; border-radius:50%; filter:blur(48px);
+  }
+  .orb1 { width:180px; height:180px; background:rgba(0,229,255,0.18); top:-40px; left:-40px; animation:orb-float1 6s ease-in-out infinite; }
+  .orb2 { width:140px; height:140px; background:rgba(180,60,255,0.18); bottom:-20px; right:-20px; animation:orb-float2 7s ease-in-out infinite; }
+  .orb3 { width:100px; height:100px; background:rgba(255,45,120,0.14); bottom:30px; left:20%; animation:orb-float3 5s ease-in-out infinite; }
+
+  .home-ball-wrap {
+    position:relative; z-index:1;
+    animation:ball-float 2.8s ease-in-out infinite;
+    filter:drop-shadow(0 0 18px rgba(0,229,255,0.6));
+  }
+  .home-ball { font-size:44px; animation:ball-spin 2s ease-in-out infinite alternate; display:block; }
+
+  .home-title {
+    position:relative; z-index:1;
+    animation:title-glow 3s ease-in-out infinite;
+    margin-top:6px;
+  }
+
+  .home-tagline {
+    font-family:'Nunito',sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:3px; text-transform:uppercase;
+    color:rgba(0,229,255,0.5);
+    position:relative; z-index:1;
+    margin-top:4px;
+  }
+
+  .home-divider {
+    width:60px; height:2px; border-radius:2px;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    margin:12px auto 4px;
+    animation:divider-glow 2s ease-in-out infinite;
+    position:relative; z-index:1;
+  }
+
+  .home-btn {
+    position:relative; z-index:1;
+    animation:btn-pulse 2.5s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <div id="hud" style="display:none;">
+    <div class="hud-item">
+      <span class="hud-label">Round</span>
+      <span class="hud-value" id="round-display">1</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Goals</span>
+      <span class="hud-value" id="score-display">0</span>
+    </div>
+  </div>
+
+  <div id="field-container">
+    <canvas id="field-canvas"></canvas>
+    <div class="overlay" id="win-overlay">
+      <div class="overlay-title">GOAL!</div>
+      <div class="overlay-sub" id="win-sub">Round complete</div>
+      <button class="btn" id="next-btn">NEXT ROUND</button>
+    </div>
+    <div class="overlay" id="gameover-overlay">
+      <div class="overlay-title" id="gameover-title" style="color:#ff2d78;text-shadow:0 0 30px #ff2d78,0 0 60px rgba(255,45,120,0.5);">BOOM!</div>
+      <div class="overlay-sub" id="gameover-reason">You hit a bomb</div>
+      <div class="overlay-sub" id="gameover-score" style="font-size:18px;color:rgba(0,229,255,0.8);margin-top:4px;"></div>
+      <button class="btn btn-red" id="retry-btn">TRY AGAIN</button>
+    </div>
+    <div class="overlay" id="start-overlay" style="opacity:1;pointer-events:all;overflow:hidden;">
+      <div class="home-orbs">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+        <div class="orb orb3"></div>
+      </div>
+      <div class="home-ball-wrap">
+        <div class="home-ball">⚽</div>
+      </div>
+      <div class="overlay-title home-title" style="text-align:center;">TINY FOOTY</div>
+      <div class="home-tagline">kick a ball into the net to win</div>
+      <div class="home-divider"></div>
+      <button class="btn home-btn" id="start-btn">KICK OFF</button>
+    </div>
+  </div>
+  <div id="hint-toast">💡 Press restart ↺ then press hint to use hints</div>
+  <div id="game-btns" style="display:none;">
+    <button class="btn btn-restart" id="rewind-btn" title="Undo last move" style="opacity:0.3;pointer-events:none;">⏮</button>
+    <button class="btn btn-restart" id="restart-btn" onclick="resetGame()" title="Restart">↺</button>
+    <button class="btn btn-restart" id="hint-btn" title="Show solution">💡</button>
+  </div>
+</div>
+
+<script>
+const COLS = 6, ROWS = 6;
+const canvas = document.getElementById('field-canvas');
+const ctx = canvas.getContext('2d');
+let CELL, W, H;
+let pulseRAF = null;
+// Shared AudioContext — created once on first user gesture, reused for all sounds
+let _sharedAC = null;
+function getAC() {
+  if (!_sharedAC || _sharedAC.state === 'closed') {
+    _sharedAC = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_sharedAC.state === 'suspended') _sharedAC.resume();
+  return _sharedAC;
+}
+
+// ── Quaternion math ───────────────────────────────────────────────────────
+function qMul(a,b){const[ax,ay,az,aw]=a,[bx,by,bz,bw]=b;return[aw*bx+ax*bw+ay*bz-az*by,aw*by-ax*bz+ay*bw+az*bx,aw*bz+ax*by-ay*bx+az*bw,aw*bw-ax*bx-ay*by-az*bz];}
+function qNorm(q){const l=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3]);return[q[0]/l,q[1]/l,q[2]/l,q[3]/l];}
+function qAxis(ax,ay,az,a){const s=Math.sin(a/2);return[ax*s,ay*s,az*s,Math.cos(a/2)];}
+function qSlerp(a,b,t){let dot=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3];let bb=dot<0?(dot=-dot,[-b[0],-b[1],-b[2],-b[3]]):b;if(dot>0.9995)return qNorm([a[0]+t*(bb[0]-a[0]),a[1]+t*(bb[1]-a[1]),a[2]+t*(bb[2]-a[2]),a[3]+t*(bb[3]-a[3])]);const th0=Math.acos(dot),th=th0*t,s0=Math.cos(th)-dot*Math.sin(th)/Math.sin(th0),s1=Math.sin(th)/Math.sin(th0);return[s0*a[0]+s1*bb[0],s0*a[1]+s1*bb[1],s0*a[2]+s1*bb[2],s0*a[3]+s1*bb[3]];}
+function qMat(q){const[x,y,z,w]=q;return[1-2*(y*y+z*z),2*(x*y-w*z),2*(x*z+w*y),2*(x*y+w*z),1-2*(x*x+z*z),2*(y*z-w*x),2*(x*z-w*y),2*(y*z+w*x),1-2*(x*x+y*y)];}
+
+// Precompute all pentagon vertices in LOCAL ball space.
+// Each patch: center on unit sphere + 5 vertices placed on sphere surface.
+// Tangent basis fixed relative to the ball → no per-frame twisting.
+const PHI = (1+Math.sqrt(5))/2;
+const _PENT_CENTERS_RAW = [[0,1,PHI],[0,-1,PHI],[0,1,-PHI],[0,-1,-PHI],[1,PHI,0],[-1,PHI,0],[1,-PHI,0],[-1,-PHI,0],[PHI,0,1],[-PHI,0,1],[PHI,0,-1],[-PHI,0,-1]].map(v=>{const l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);return[v[0]/l,v[1]/l,v[2]/l];});
+const PENT_VERTS = _PENT_CENTERS_RAW.map(c => {
+  // Build stable LOCAL tangent basis once
+  let ux=0,uy=1,uz=0;
+  if (Math.abs(c[1])>0.98){ux=1;uy=0;uz=0;}
+  let t1x=c[1]*uz-c[2]*uy, t1y=c[2]*ux-c[0]*uz, t1z=c[0]*uy-c[1]*ux;
+  let l1=Math.sqrt(t1x*t1x+t1y*t1y+t1z*t1z)||1; t1x/=l1;t1y/=l1;t1z/=l1;
+  let t2x=c[1]*t1z-c[2]*t1y, t2y=c[2]*t1x-c[0]*t1z, t2z=c[0]*t1y-c[1]*t1x;
+  let l2=Math.sqrt(t2x*t2x+t2y*t2y+t2z*t2z)||1; t2x/=l2;t2y/=l2;t2z/=l2;
+  const angR = 0.34;
+  const verts = [];
+  for(let k=0;k<5;k++){
+    const a=(k/5)*Math.PI*2+Math.PI/10;
+    const ca=Math.cos(a)*angR, sa=Math.sin(a)*angR;
+    let vx=c[0]+ca*t1x+sa*t2x, vy=c[1]+ca*t1y+sa*t2y, vz=c[2]+ca*t1z+sa*t2z;
+    const vl=Math.sqrt(vx*vx+vy*vy+vz*vz)||1;
+    verts.push([vx/vl, vy/vl, vz/vl]);
+  }
+  return {center:c, verts};
+});
+
+let hintActive = false;
+let hintStep = 0;
+let boardDiverged = false; // true if user moved without following hint
+let netWave = null; // {startTime, col, row} for net wave animation
+let mirrorSquish = null; // {startTime, duration, ballIdx} squish animation
+let springAnim = null; // {col, row, startTime, phase} 'compress'→'release'
+
+let gs = {
+  balls: [],          // [{col,row,quat,visible,scored}]
+  activeBall: 0,      // index into balls[]
+  hasInteracted: false,
+  nets: [],           // [{col,row}]
+  round: 1, score: 0,
+  animating: false,
+  obstacles: [], bombs: [], blackholes: [], muds: [], mirrors: [], waters: [],
+  stuckInMud: false,
+  puzzleMode: false,
+  puzzleBallsLeft: 0,
+};
+// Convenience getter — always the active ball object
+function AB() { return gs.balls[gs.activeBall]; }
+// Legacy shims used throughout
+Object.defineProperty(gs, 'ball',     { get(){ return AB(); }, set(v){ gs.balls[gs.activeBall]=v; } });
+Object.defineProperty(gs, 'ballQuat', { get(){ return AB()?.quat||[0,0,0,1]; }, set(v){ if(AB()) AB().quat=v; } });
+Object.defineProperty(gs, 'ballVisible', { get(){ return AB()?.visible!==false; }, set(v){ if(AB()) AB().visible=v; } });
+
+// ── Resize ────────────────────────────────────────────────────────────────
+function resize() {
+  const maxW = Math.min(window.innerWidth - 32, 340);
+  CELL = Math.floor(maxW / COLS);
+  W = CELL * COLS; H = CELL * ROWS;
+  canvas.width = W; canvas.height = H;
+  draw();
+}
+
+// ── Draw field ────────────────────────────────────────────────────────────
+function drawField() {
+  // Pure black base
+  ctx.fillStyle = '#05050a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Alternating dark tile columns (piano-key feel)
+  for (let c = 0; c < COLS; c++) {
+    const x = c * CELL;
+    ctx.fillStyle = c % 2 === 0 ? 'rgba(0,229,255,0.022)' : 'rgba(180,79,255,0.018)';
+    ctx.fillRect(x, 0, CELL, H);
+  }
+
+  // Horizontal row separators — very subtle
+  ctx.strokeStyle = 'rgba(0,229,255,0.07)'; ctx.lineWidth = 0.5;
+  for (let r = 1; r < ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(W, r*CELL); ctx.stroke();
+  }
+  // Vertical col separators
+  ctx.strokeStyle = 'rgba(180,79,255,0.07)'; ctx.lineWidth = 0.5;
+  for (let c = 1; c < COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, H); ctx.stroke();
+  }
+
+  // Outer border glow
+  ctx.strokeStyle = 'rgba(0,229,255,0.25)'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(0.75, 0.75, W-1.5, H-1.5);
+}
+
+function drawObstacles() {
+  gs.obstacles.forEach(ob => {
+    const x = ob.col*CELL+3, y = ob.row*CELL+3, s = CELL-6;
+    // Dark tile bg
+    ctx.fillStyle = '#0e0a1a';
+    ctx.fillRect(x, y, s, s);
+    // Purple neon border
+    ctx.strokeStyle = '#b44fff'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, s, s);
+    // Inner glow
+    const g = ctx.createRadialGradient(x+s/2, y+s/2, 0, x+s/2, y+s/2, s*0.7);
+    g.addColorStop(0, 'rgba(180,79,255,0.18)');
+    g.addColorStop(1, 'rgba(180,79,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(x, y, s, s);
+    // X mark
+    ctx.strokeStyle = 'rgba(180,79,255,0.8)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x+6,y+6); ctx.lineTo(x+s-6,y+s-6);
+    ctx.moveTo(x+s-6,y+6); ctx.lineTo(x+6,y+s-6);
+    ctx.stroke(); ctx.lineCap = 'butt';
+  });
+}
+
+function drawSpringLine(x1, y1, x2, y2, bendAmt, coils, color, lineWidth, now) {
+  // Draw a spring as a series of coils along the line from (x1,y1) to (x2,y2)
+  // bendAmt: positive = arc bends toward perpendicular (compress/release)
+  const dx = x2-x1, dy = y2-y1;
+  const len = Math.sqrt(dx*dx+dy*dy) || 1;
+  const ux = dx/len, uy = dy/len;   // unit along spring
+  const nx = -uy, ny = ux;          // unit normal (perpendicular)
+
+  const segments = coils * 2; // half-coils
+  ctx.beginPath();
+  for (let i = 0; i <= segments * 8; i++) {
+    const t = i / (segments * 8);
+    const px = x1 + ux * len * t;
+    const py = y1 + uy * len * t;
+    // Coil displacement: sine wave + quadratic arc for bend
+    const coilAmp = CELL * 0.10;
+    const arcBend = bendAmt * Math.sin(t * Math.PI); // max bend at midpoint
+    const coilOff = Math.sin(t * segments * Math.PI * 2) * coilAmp;
+    const totalOff = arcBend + coilOff;
+    const sx = px + nx * totalOff;
+    const sy = py + ny * totalOff;
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
+function drawMirrors(now) {
+  const t = now || performance.now();
+  gs.mirrors.forEach(m => {
+    const x = m.col*CELL, y = m.row*CELL;
+    const cx = x + CELL/2, cy = y + CELL/2;
+    const pad = CELL * 0.14;
+    const isForward = m.type === 'fwd';
+
+    const x1 = x+pad;
+    const y1 = isForward ? y+CELL-pad : y+pad;
+    const x2 = x+CELL-pad;
+    const y2 = isForward ? y+pad      : y+CELL-pad;
+
+    // Spring animation state
+    let bendAmt = 0;
+    if (springAnim && springAnim.col === m.col && springAnim.row === m.row) {
+      const elapsed = t - springAnim.startTime;
+      const COMPRESS = 150, RELEASE = 350;
+      if (elapsed < COMPRESS) {
+        // Compress: bend grows
+        const tp = elapsed / COMPRESS;
+        bendAmt = -CELL * 0.22 * Math.sin(tp * Math.PI * 0.5); // ease into bend
+      } else if (elapsed < COMPRESS + RELEASE) {
+        // Release: spring bounces back with damped oscillation
+        const tr = (elapsed - COMPRESS) / RELEASE;
+        bendAmt = CELL * 0.22 * Math.sin(tr * Math.PI * 3.5) * Math.pow(1 - tr, 1.5);
+      } else {
+        springAnim = null;
+      }
+    }
+
+    // Dark bg
+    ctx.fillStyle = '#080814'; ctx.fillRect(x+2, y+2, CELL-4, CELL-4);
+
+    // Neon border
+    ctx.strokeStyle = 'rgba(0,229,255,0.18)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x+2, y+2, CELL-4, CELL-4);
+
+    // Glow layer
+    ctx.shadowColor = bendAmt !== 0 ? '#ffcc00' : '#00e5ff';
+    ctx.shadowBlur = bendAmt !== 0 ? 14 : 8;
+    drawSpringLine(x1, y1, x2, y2, bendAmt, 3, bendAmt !== 0 ? 'rgba(255,200,0,0.55)' : 'rgba(0,200,255,0.45)', CELL * 0.12, t);
+
+    // Bright core
+    ctx.shadowBlur = 0;
+    drawSpringLine(x1, y1, x2, y2, bendAmt, 3, bendAmt !== 0 ? 'rgba(255,240,100,0.95)' : 'rgba(180,255,255,0.9)', CELL * 0.04, t);
+
+    // End caps (anchor dots)
+    [{ x: x1, y: y1 }, { x: x2, y: y2 }].forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.055, 0, Math.PI * 2);
+      ctx.fillStyle = bendAmt !== 0 ? 'rgba(255,240,100,0.9)' : 'rgba(0,229,255,0.8)'; ctx.fill();
+    });
+
+    if (springAnim && springAnim.col === m.col && springAnim.row === m.row) startPulse();
+  });
+  ctx.lineCap = 'butt';
+}
+
+function drawMuds() {
+  gs.muds.forEach(m => {
+    const x = m.col*CELL+2, y = m.row*CELL+2, s = CELL-4;
+    const cx = m.col*CELL + CELL/2, cy = m.row*CELL + CELL/2;
+
+    // Dark amber bg
+    ctx.fillStyle = '#120900'; ctx.fillRect(x, y, s, s);
+
+    // Amber neon glow
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s*0.65);
+    g.addColorStop(0, 'rgba(255,140,0,0.22)');
+    g.addColorStop(1, 'rgba(255,80,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(x, y, s, s);
+
+    // Neon border
+    ctx.strokeStyle = 'rgba(255,120,0,0.55)'; ctx.lineWidth = 1.2;
+    ctx.strokeRect(x, y, s, s);
+
+    // Bubble dots
+    [[0.22,-0.12],[-0.18,0.18],[0.04,0.25],[-0.24,-0.04]].forEach(([bx,by]) => {
+      ctx.fillStyle = 'rgba(255,140,0,0.35)';
+      ctx.beginPath(); ctx.arc(cx+bx*CELL, cy+by*CELL, CELL*0.05, 0, Math.PI*2); ctx.fill();
+    });
+
+    // STUCK label
+    if (gs.stuckInMud && gs.ball.col===m.col && gs.ball.row===m.row) {
+      ctx.font = `800 ${Math.floor(CELL*0.27)}px Nunito,sans-serif`;
+      ctx.fillStyle = '#ff9000';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText('STUCK', cx, m.row*CELL+2);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+  });
+}
+
+function drawNet(now) {
+  const t = now || performance.now();
+  gs.nets.forEach(n => {
+    const x = n.col*CELL, y = n.row*CELL, s = CELL;
+    ctx.fillStyle = 'rgba(0,229,255,0.08)'; ctx.fillRect(x, y, s, s);
+
+    // Wavy grid lines when netWave is active on this cell
+    const waving = netWave && netWave.col === n.col && netWave.row === n.row;
+    const wt = waving ? Math.min((t - netWave.startTime) / 600, 1) : 0;
+    const wAmp = waving ? Math.sin(wt * Math.PI) * 2.5 * (1 - wt) : 0;
+
+    ctx.strokeStyle = 'rgba(0,229,255,0.30)'; ctx.lineWidth = 0.5;
+    for (let mx = x+7; mx < x+s-1; mx += 7) {
+      ctx.beginPath();
+      for (let py = y+1; py <= y+s-1; py += 2) {
+        const wave = wAmp * Math.sin((py - y) / s * Math.PI * 3 + (t - (netWave?.startTime||0)) * 0.018);
+        py === y+1 ? ctx.moveTo(mx + wave, py) : ctx.lineTo(mx + wave, py);
+      }
+      ctx.stroke();
+    }
+    for (let my = y+7; my < y+s-1; my += 7) {
+      ctx.beginPath();
+      for (let px = x+1; px <= x+s-1; px += 2) {
+        const wave = wAmp * Math.sin((px - x) / s * Math.PI * 3 + (t - (netWave?.startTime||0)) * 0.018);
+        px === x+1 ? ctx.moveTo(px, my + wave) : ctx.lineTo(px, my + wave);
+      }
+      ctx.stroke();
+    }
+
+    ctx.shadowColor = '#00e5ff'; ctx.shadowBlur = waving ? 18 + wAmp*4 : 10;
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
+    ctx.strokeRect(x+1, y+1, s-2, s-2);
+    ctx.shadowBlur = 0;
+    if (waving && wt < 1) startPulse(); // keep repainting during wave
+  });
+}
+
+function drawWater() {
+  gs.waters.forEach(w => {
+    const x = w.col*CELL+2, y = w.row*CELL+2, s = CELL-4;
+    const cx = w.col*CELL+CELL/2, cy = w.row*CELL+CELL/2;
+    ctx.fillStyle = '#030d1a'; ctx.fillRect(x, y, s, s);
+    const g = ctx.createRadialGradient(cx, cy-s*0.1, 0, cx, cy, s*0.6);
+    g.addColorStop(0, 'rgba(0,120,255,0.22)'); g.addColorStop(1, 'rgba(0,60,180,0)');
+    ctx.fillStyle = g; ctx.fillRect(x, y, s, s);
+    // ripple lines
+    ctx.strokeStyle = 'rgba(0,160,255,0.25)'; ctx.lineWidth = 0.8;
+    for (let i = 0; i < 3; i++) {
+      const ry = cy - s*0.12 + i*s*0.14;
+      ctx.beginPath();
+      ctx.ellipse(cx, ry, s*0.28-i*2, s*0.06, 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(0,140,255,0.35)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, s, s);
+  });
+}
+
+function drawBombs(now) {
+  const t = now || performance.now();
+  gs.bombs.forEach(b => {
+    const cx = b.col*CELL + CELL/2, cy = b.row*CELL + CELL/2;
+    const r = CELL * 0.36;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.004 + b.col * 1.7);
+
+    // Glow
+    const glow = ctx.createRadialGradient(cx, cy, r*0.4, cx, cy, r*1.7);
+    glow.addColorStop(0, `rgba(255,80,0,${0.18 + pulse*0.14})`);
+    glow.addColorStop(1, 'rgba(255,80,0,0)');
+    ctx.beginPath(); ctx.arc(cx, cy, r*1.7, 0, Math.PI*2);
+    ctx.fillStyle = glow; ctx.fill();
+
+    // Body
+    const bg = ctx.createRadialGradient(cx-r*0.28, cy-r*0.28, r*0.04, cx, cy, r);
+    bg.addColorStop(0, '#666'); bg.addColorStop(1, '#111');
+    ctx.beginPath(); ctx.arc(cx, cy+r*0.08, r*0.82, 0, Math.PI*2);
+    ctx.fillStyle = bg; ctx.fill();
+
+    // Fuse
+    ctx.strokeStyle = '#8B6914'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx+r*0.28, cy-r*0.72);
+    ctx.bezierCurveTo(cx+r*0.62, cy-r*1.1, cx+r*0.15, cy-r*1.35, cx+r*0.05, cy-r*1.05);
+    ctx.stroke();
+
+    // Spark
+    const sx = cx+r*0.05, sy = cy-r*1.05, sr = 2.5 + pulse*3.5;
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    sg.addColorStop(0, '#fff'); sg.addColorStop(0.3, '#ffdd00'); sg.addColorStop(1, 'rgba(255,100,0,0)');
+    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI*2); ctx.fillStyle = sg; ctx.fill();
+
+    // Shine
+    ctx.beginPath(); ctx.arc(cx-r*0.26, cy-r*0.12, r*0.17, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill();
+  });
+}
+
+function drawBlackHoles(now) {
+  const t = now || performance.now();
+  gs.blackholes.forEach(bh => {
+    const cx = bh.col*CELL + CELL/2, cy = bh.row*CELL + CELL/2;
+    const r = CELL * 0.42;
+
+    // Distortion halo — spinning arc rings
+    for (let ring = 0; ring < 3; ring++) {
+      const ringR = r * (1.3 + ring * 0.45);
+      const speed = (ring + 1) * 0.0008;
+      const offset = t * speed + ring * 1.2;
+      const alpha = 0.12 - ring * 0.03;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(offset);
+      ctx.beginPath();
+      ctx.arc(0, 0, ringR, 0, Math.PI * 1.6);
+      ctx.strokeStyle = `rgba(160,80,255,${alpha})`;
+      ctx.lineWidth = 2 + ring;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Accretion disk — layered gradient ellipses, spinning
+    const diskAngle = t * 0.0005;
+    for (let i = 0; i < 5; i++) {
+      const fr = 0.4 + i * 0.14;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(diskAngle + i * 0.6);
+      ctx.scale(1, 0.32);
+      const diskGrad = ctx.createRadialGradient(0, 0, r*0.1, 0, 0, r * fr);
+      const hue = 260 + i * 12;
+      diskGrad.addColorStop(0, `hsla(${hue},100%,70%,0)`);
+      diskGrad.addColorStop(0.5, `hsla(${hue},100%,65%,${0.18 - i*0.025})`);
+      diskGrad.addColorStop(1, `hsla(${hue},100%,40%,0)`);
+      ctx.beginPath(); ctx.arc(0, 0, r * fr, 0, Math.PI*2);
+      ctx.fillStyle = diskGrad; ctx.fill();
+      ctx.restore();
+    }
+
+    // Event horizon — pure black circle with hard edge
+    const horizonGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    horizonGrad.addColorStop(0, '#000000');
+    horizonGrad.addColorStop(0.75, '#000000');
+    horizonGrad.addColorStop(0.88, 'rgba(30,0,60,0.9)');
+    horizonGrad.addColorStop(1, 'rgba(80,0,120,0)');
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = horizonGrad; ctx.fill();
+
+    // Inner purple/blue glow at the rim
+    const rimGrad = ctx.createRadialGradient(cx, cy, r*0.65, cx, cy, r*0.95);
+    rimGrad.addColorStop(0, 'rgba(120,0,200,0)');
+    rimGrad.addColorStop(1, `rgba(180,60,255,${0.35 + 0.15 * Math.sin(t*0.003)})`);
+    ctx.beginPath(); ctx.arc(cx, cy, r*0.95, 0, Math.PI*2);
+    ctx.fillStyle = rimGrad; ctx.fill();
+  });
+}
+
+
+// Constant view-tilt quaternion: ~25° forward tilt so we see the ball
+// rolling toward/away from us, not just spinning from directly above
+const VIEW_TILT = qNorm(qMul(qAxis(1,0,0,-0.55), qAxis(0,0,1,0.25))); // X tilt ~32° + Z tilt ~14°
+
+function drawFootball(col, row, quat, scale) {
+  const cx = col*CELL + CELL/2, cy = row*CELL + CELL/2;
+  const sc = (scale !== undefined) ? Math.max(0, scale) : 1;
+  if (sc < 0.01) return;
+  const R = CELL * 0.41 * sc;
+
+  // Mirror squish: only squash the ball that hit the mirror
+  let squishX = 1, squishY = 1;
+  const isSquishedBall = mirrorSquish && (mirrorSquish.ballIdx === undefined || gs.balls.indexOf(gs.balls.find((b,i)=> i===mirrorSquish.ballIdx)) >= 0);
+  if (mirrorSquish && isSquishedBall) {
+    // Check if this drawFootball call is for the squished ball by matching col/row
+    const sb = gs.balls[mirrorSquish.ballIdx];
+    const isThisBall = sb && Math.abs(sb.col - col) < 0.01 && Math.abs(sb.row - row) < 0.01;
+    if (isThisBall) {
+      const st = Math.min((performance.now() - mirrorSquish.startTime) / mirrorSquish.duration, 1);
+      if (st < 1) {
+        const squishAmt = Math.sin(st * Math.PI) * 0.28;
+        squishX = 1 + squishAmt;
+        squishY = 1 - squishAmt * 0.6;
+      } else {
+        mirrorSquish = null;
+      }
+    }
+  }
+
+  ctx.save();
+  ctx.globalAlpha *= sc;
+  ctx.translate(cx, cy);
+  ctx.scale(squishX, squishY);
+  ctx.translate(-cx, -cy);
+
+  // Drop shadow — slightly offset, elliptical
+  ctx.beginPath();
+  ctx.ellipse(cx + R*0.05, cy + R*0.52, R*0.82, R*0.20, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fill();
+
+  // Leather base — warm off-white with subtle grain gradient
+  const grad = ctx.createRadialGradient(cx-R*0.36, cy-R*0.38, R*0.02, cx+R*0.12, cy+R*0.18, R*1.08);
+  grad.addColorStop(0,   '#ffffff');
+  grad.addColorStop(0.22,'#f5f5f3');
+  grad.addColorStop(0.58,'#d8d8d4');
+  grad.addColorStop(1,   '#8a8a84');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Clip to ball for patch drawing
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.998, 0, Math.PI*2); ctx.clip();
+
+  // Apply view tilt on top of ball rotation so we see rolling from slight angle
+  const displayQ = qNorm(qMul(VIEW_TILT, quat || gs.ballQuat));
+  const mat = qMat(displayQ);
+
+
+  // Rotate precomputed LOCAL vertices with the ball matrix.
+  // NO SORTING — soccer ball patches don't overlap on the front hemisphere.
+  // Sort-order swaps are the main cause of visible "popping" between frames.
+  PENT_VERTS.forEach(({center, verts}) => {
+    // Depth of patch center along view axis (Z after full rotation)
+    const rz = mat[6]*center[0] + mat[7]*center[1] + mat[8]*center[2];
+
+    // Smooth continuous alpha from fully back (-1) to fully front (+1)
+    // No hard threshold — the ball clip handles the silhouette
+    const alpha = Math.max(0, (rz + 0.25) / 1.25); // 0 when rz<-0.25, 1 when rz=1
+    if (alpha <= 0) return;
+
+    // Project all 5 vertices to screen
+    ctx.beginPath();
+    verts.forEach((v, k) => {
+      const sx = cx + (mat[0]*v[0] + mat[1]*v[1] + mat[2]*v[2]) * R;
+      const sy = cy - (mat[3]*v[0] + mat[4]*v[1] + mat[5]*v[2]) * R;
+      k === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    });
+    ctx.closePath();
+
+    ctx.fillStyle = `rgba(12,12,10,${(alpha * 0.93).toFixed(3)})`;
+    ctx.fill();
+
+    if (rz > 0.05) {
+      ctx.strokeStyle = `rgba(255,255,255,${(rz * 0.45 * alpha).toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.5, R * 0.025);
+      ctx.stroke();
+    }
+  });
+
+  ctx.restore(); // end clip
+
+  // Fixed specular — does NOT rotate with ball, top-left always
+  const spec = ctx.createRadialGradient(cx-R*0.42, cy-R*0.44, 0, cx-R*0.14, cy-R*0.14, R*0.62);
+  spec.addColorStop(0,   'rgba(255,255,255,0.92)');
+  spec.addColorStop(0.3, 'rgba(255,255,255,0.40)');
+  spec.addColorStop(0.7, 'rgba(255,255,255,0.06)');
+  spec.addColorStop(1,   'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.fillStyle = spec; ctx.fill();
+
+  // Limb darkening — softens the silhouette edge
+  const limb = ctx.createRadialGradient(cx, cy, R*0.7, cx, cy, R*1.01);
+  limb.addColorStop(0,'rgba(0,0,0,0)');
+  limb.addColorStop(1,'rgba(0,0,0,0.28)');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.fillStyle = limb; ctx.fill();
+
+  // Thin outline
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(30,30,25,0.28)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  ctx.restore();
+}
+
+function draw(ballX, ballY, quat, now) {
+  ctx.clearRect(0, 0, W, H);
+  drawField(); drawObstacles(); drawWater(); drawMirrors(now); drawMuds(); drawBombs(now); drawBlackHoles(now); drawNet(now);
+  // Draw all non-active, non-scored balls first
+  gs.balls.forEach((b, i) => {
+    if (!b.visible || b.scored) return;
+    if (i === gs.activeBall) return; // draw active ball last (on top)
+    drawFootball(b.col, b.row, b.quat);
+  });
+  // Draw active ball (possibly mid-animation)
+  const ab = gs.balls[gs.activeBall];
+  if (ab && ab.visible && !ab.scored) {
+    const bc = (ballX !== undefined) ? ballX : ab.col;
+    const br = (ballY !== undefined) ? ballY : ab.row;
+    const bq = quat || ab.quat;
+    // Active ball glow ring — only after first interaction
+    if (gs.hasInteracted) {
+      const cx2 = bc*CELL+CELL/2, cy2 = br*CELL+CELL/2, R2 = CELL*0.44;
+      ctx.beginPath(); ctx.arc(cx2, cy2, R2, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(0,229,255,0.55)'; ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    drawFootball(bc, br, bq);
+  }
+  // Ball count indicator
+
+  drawHintArrow(now);
+}
+
+// ── Idle bomb pulse ───────────────────────────────────────────────────────
+function startPulse() {
+  if (pulseRAF) return;
+  function tick(now) {
+    if (!gs.animating && (gs.bombs.length > 0 || gs.blackholes.length > 0)) draw(undefined, undefined, undefined, now);
+    pulseRAF = requestAnimationFrame(tick);
+  }
+  pulseRAF = requestAnimationFrame(tick);
+}
+function stopPulse() {
+  if (pulseRAF) { cancelAnimationFrame(pulseRAF); pulseRAF = null; }
+}
+
+// ── Wall jiggle (single ball) ────────────────────────────────────────────
+function triggerWallJiggle(ball, dir, onDone) {
+  const STEP = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
+  const dx = STEP[dir][0], dy = STEP[dir][1];
+  const DURATION = 260;
+  const start = performance.now();
+  const origCol = ball.col, origRow = ball.row;
+  const JIGGLE = 0.13;
+  gs.animating = true;
+
+  function step(now) {
+    const t = Math.min((now - start) / DURATION, 1);
+    const decay = Math.pow(1 - t, 2.5);
+    const osc = Math.sin(t * Math.PI * 4.5) * JIGGLE * decay;
+    ball.col = origCol + dx * osc;
+    ball.row = origRow + dy * osc;
+    draw(undefined, undefined, undefined, now);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      ball.col = origCol; ball.row = origRow;
+      gs.animating = false;
+      draw();
+      if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse();
+      if (onDone) onDone();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Ball collision jiggle ────────────────────────────────────────────────
+function triggerCollisionJiggle(ballA, ballB, dir, onDone) {
+  const STEP = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
+  const dx = STEP[dir][0], dy = STEP[dir][1];
+  const DURATION = 320;
+  const start = performance.now();
+  const origAcol = ballA.col, origArow = ballA.row;
+  const origBcol = ballB.col, origBrow = ballB.row;
+  const JIGGLE = 0.15;
+  gs.animating = true;
+
+  function step(now) {
+    const t = Math.min((now - start) / DURATION, 1);
+    const decay = Math.pow(1 - t, 2);
+    const osc = Math.sin(t * Math.PI * 5) * JIGGLE * decay;
+    ballA.col = origAcol + dx * osc;
+    ballA.row = origArow + dy * osc;
+    ballB.col = origBcol + dx * osc * 0.5;
+    ballB.row = origBrow + dy * osc * 0.5;
+    draw(undefined, undefined, undefined, now);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      ballA.col = origAcol; ballA.row = origArow;
+      ballB.col = origBcol; ballB.row = origBrow;
+      gs.animating = false;
+      draw();
+      if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse();
+      if (onDone) onDone();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Explosion ─────────────────────────────────────────────────────────────
+let particles = [];
+let explRAF = null;
+
+function triggerExplosion(col, row) {
+  // ── Explosion sound ───────────────────────────────────────────────────────
+  try {
+    const ac = getAC();
+
+    // Layer 1: low boom — filtered noise burst
+    const bufLen = ac.sampleRate * 1.2;
+    const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      // Pink-ish noise: heavier at start
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufLen, 0.5);
+    }
+    const noise = ac.createBufferSource();
+    noise.buffer = buf;
+
+    // Sub-bass sine thud underneath the noise
+    const thud = ac.createOscillator();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(80, ac.currentTime);
+    thud.frequency.exponentialRampToValueAtTime(18, ac.currentTime + 0.7);
+    const thudGain = ac.createGain();
+    thudGain.gain.setValueAtTime(3.5, ac.currentTime);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
+    thud.connect(thudGain); thudGain.connect(ac.destination);
+    thud.start(); thud.stop(ac.currentTime + 0.7);
+
+    const boomFilter = ac.createBiquadFilter();
+    boomFilter.type = 'lowpass';
+    boomFilter.frequency.setValueAtTime(90, ac.currentTime);
+    boomFilter.frequency.exponentialRampToValueAtTime(20, ac.currentTime + 0.8);
+    boomFilter.Q.value = 2.5;
+
+    const boomGain = ac.createGain();
+    boomGain.gain.setValueAtTime(4.0, ac.currentTime);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1.1);
+
+    noise.connect(boomFilter); boomFilter.connect(boomGain); boomGain.connect(ac.destination);
+    noise.start();
+
+    // Layer 2: mid crack — short sharp noise burst
+    const buf2 = ac.createBuffer(1, ac.sampleRate * 0.12, ac.sampleRate);
+    const d2 = buf2.getChannelData(0);
+    for (let i = 0; i < d2.length; i++) d2[i] = (Math.random()*2-1) * Math.pow(1 - i/d2.length, 1.5);
+    const crack = ac.createBufferSource();
+    crack.buffer = buf2;
+
+    const crackFilter = ac.createBiquadFilter();
+    crackFilter.type = 'bandpass';
+    crackFilter.frequency.value = 800;
+    crackFilter.Q.value = 0.6;
+
+    const crackGain = ac.createGain();
+    crackGain.gain.setValueAtTime(1.4, ac.currentTime);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
+
+    crack.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(ac.destination);
+    crack.start();
+
+    // Layer 3: debris rattle — fading mid-high noise tail
+    const buf3 = ac.createBuffer(1, ac.sampleRate * 0.5, ac.sampleRate);
+    const d3 = buf3.getChannelData(0);
+    for (let i = 0; i < d3.length; i++) d3[i] = (Math.random()*2-1) * Math.pow(1 - i/d3.length, 1.2);
+    const rattle = ac.createBufferSource();
+    rattle.buffer = buf3;
+
+    const rattleFilter = ac.createBiquadFilter();
+    rattleFilter.type = 'bandpass';
+    rattleFilter.frequency.value = 1200;
+    rattleFilter.Q.value = 0.8;
+
+    const rattleGain = ac.createGain();
+    rattleGain.gain.setValueAtTime(0.0, ac.currentTime);
+    rattleGain.gain.linearRampToValueAtTime(0.6, ac.currentTime + 0.04);
+    rattleGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+
+    rattle.connect(rattleFilter); rattleFilter.connect(rattleGain); rattleGain.connect(ac.destination);
+    rattle.start();
+
+  } catch(e) {}
+  // ─────────────────────────────────────────────────────────────────────────
+  stopPulse();
+  const ballBeforeHide = AB();
+  const ballQuat = ballBeforeHide ? ballBeforeHide.quat.slice() : [0,0,0,1];
+  gs.ballVisible = false;
+  gs.animating = true;
+  // Remove the bomb that was hit
+  gs.bombs = gs.bombs.filter(b => !(b.col===col && b.row===row));
+  const cx = col*CELL + CELL/2, cy = row*CELL + CELL/2;
+  particles = [];
+
+  particles.push({ type:'ring', x:cx, y:cy, r:0, maxR:CELL*2.8, life:1 });
+  // Ball fragments — 6 white chunks flying outward
+  for (let i = 0; i < 6; i++) {
+    const a = (i/6)*Math.PI*2 + Math.random()*0.4;
+    const spd = 1.8+Math.random()*2.8;
+    particles.push({ type:'ballfrag', x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-0.5,
+      gravity:0.09, r:CELL*0.18+Math.random()*CELL*0.10, life:1, decay:0.018+Math.random()*0.01,
+      rot:Math.random()*Math.PI*2, rotSpd:(Math.random()-0.5)*0.22, dark: i%2===0 });
+  }
+  // Black pentagon patches flying off the ball
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random()*Math.PI*2;
+    const spd = 1.2+Math.random()*3.2;
+    const sides = 5;
+    const r = CELL*0.09+Math.random()*CELL*0.08;
+    particles.push({ type:'patch', x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-0.8,
+      gravity:0.07, r, sides, life:1, decay:0.014+Math.random()*0.012,
+      rot:Math.random()*Math.PI*2, rotSpd:(Math.random()-0.5)*0.28 });
+  }
+
+  for (let i = 0; i < 44; i++) {
+    const a = Math.random()*Math.PI*2, spd = 1.5+Math.random()*4.5;
+    particles.push({ type:'fire', x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
+      r:3+Math.random()*7, life:1, decay:0.022+Math.random()*0.022,
+      color:['#ff6600','#ff4400','#ffaa00','#ffdd00','#ff2200'][Math.floor(Math.random()*5)] });
+  }
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random()*Math.PI*2, spd = 2+Math.random()*3.5;
+    particles.push({ type:'debris', x:cx, y:cy, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-1.2,
+      gravity:0.14, r:2+Math.random()*4.5, life:1, decay:0.016+Math.random()*0.014,
+      rot:Math.random()*Math.PI*2, rotSpd:(Math.random()-0.5)*0.35 });
+  }
+  for (let i = 0; i < 14; i++) {
+    const a = Math.random()*Math.PI*2, spd = 0.4+Math.random()*1.4;
+    particles.push({ type:'smoke',
+      x:cx+(Math.random()-0.5)*CELL*0.5, y:cy+(Math.random()-0.5)*CELL*0.5,
+      vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-0.4,
+      r:CELL*0.18, life:1, decay:0.011+Math.random()*0.01 });
+  }
+
+  if (explRAF) cancelAnimationFrame(explRAF);
+  runExplosion();
+}
+
+function runExplosion(now) {
+  draw(undefined, undefined, undefined, now);
+
+  particles.forEach(p => {
+    ctx.save(); ctx.globalAlpha = Math.max(0, p.life);
+    if (p.type === 'ring') {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(255,200,0,${p.life*0.9})`; ctx.lineWidth = 4*p.life; ctx.stroke();
+    } else if (p.type === 'fire') {
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      g.addColorStop(0,'#fff'); g.addColorStop(0.3, p.color); g.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+    } else if (p.type === 'patch') {
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      for (let k=0; k<p.sides; k++) {
+        const a = (k/p.sides)*Math.PI*2 + Math.PI/p.sides;
+        k===0 ? ctx.moveTo(Math.cos(a)*p.r, Math.sin(a)*p.r)
+               : ctx.lineTo(Math.cos(a)*p.r, Math.sin(a)*p.r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `rgba(12,12,10,${(p.life*0.92).toFixed(3)})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${(p.life*0.35).toFixed(3)})`;
+      ctx.lineWidth = 0.8; ctx.stroke();
+    } else if (p.type === 'ballfrag') {
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      // Mini soccer ball chunk: white circle with dark patch
+      ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2);
+      const fg = ctx.createRadialGradient(-p.r*0.3,-p.r*0.3,0, 0,0,p.r);
+      fg.addColorStop(0,'#ffffff'); fg.addColorStop(0.6,'#d8d8d4'); fg.addColorStop(1,'#8a8a84');
+      ctx.fillStyle = fg; ctx.fill();
+      if (p.dark) {
+        ctx.beginPath(); ctx.arc(p.r*0.1, p.r*0.1, p.r*0.52, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(12,12,10,0.75)'; ctx.fill();
+      }
+    } else if (p.type === 'debris') {
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r);
+    } else if (p.type === 'smoke') {
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      g.addColorStop(0, `rgba(120,120,120,${p.life*0.45})`); g.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+    }
+    ctx.restore();
+
+    if (p.type === 'ring') { p.r += (p.maxR-p.r)*0.11; p.life -= 0.04; }
+    else if (p.type === 'fire') { p.x+=p.vx; p.y+=p.vy; p.vx*=0.92; p.vy*=0.92; p.life-=p.decay; }
+    else if (p.type === 'patch') { p.x+=p.vx; p.y+=p.vy; p.vy+=p.gravity; p.vx*=0.97; p.rot+=p.rotSpd; p.life-=p.decay; }
+    else if (p.type === 'ballfrag') { p.x+=p.vx; p.y+=p.vy; p.vy+=p.gravity; p.vx*=0.96; p.vy*=0.96; p.rot+=p.rotSpd; p.life-=p.decay; }
+    else if (p.type === 'debris') { p.x+=p.vx; p.y+=p.vy; p.vy+=p.gravity; p.vx*=0.97; p.rot+=p.rotSpd; p.life-=p.decay; }
+    else if (p.type === 'smoke') { p.x+=p.vx; p.y+=p.vy; p.r+=0.45; p.vx*=0.98; p.vy*=0.98; p.life-=p.decay; }
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  if (particles.length > 0) {
+    explRAF = requestAnimationFrame(runExplosion);
+  } else {
+    explRAF = null;
+    gs.animating = false;
+    AB().visible = false;
+    const nextBombIdx = gs.balls.findIndex(b => !b.scored && b.visible);
+    if (nextBombIdx !== -1) {
+      gs.activeBall = nextBombIdx;
+      draw();
+      if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse();
+    } else {
+      showGameOver('BOOM!', 'You hit a bomb');
+    }
+  }
+}
+
+// ── Black hole suck-in ────────────────────────────────────────────────────
+let bhAnimRAF = null;
+
+function triggerBlackhole(bhCol, bhRow) {
+  // Straw sucking sound — high-frequency noise burst that pitch-rises and cuts off abruptly
+  try {
+    const ac = getAC();
+    // Layer 1: filtered noise — turbulent air through narrow opening
+    const bufLen = Math.floor(ac.sampleRate * 0.55);
+    const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      // Noise that gets denser toward the end (final slurp)
+      data[i] = (Math.random()*2-1) * Math.pow(i/bufLen, 0.4);
+    }
+    const noise = ac.createBufferSource();
+    noise.buffer = buf;
+
+    // Bandpass sweeping upward — straw air whistle
+    const bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(800, ac.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(4200, ac.currentTime + 0.45);
+    bp.Q.value = 4.5; // narrow band = whistling character
+
+    const noiseGain = ac.createGain();
+    noiseGain.gain.setValueAtTime(0.6, ac.currentTime);
+    noiseGain.gain.linearRampToValueAtTime(1.4, ac.currentTime + 0.4);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.55); // abrupt cut
+
+    noise.connect(bp); bp.connect(noiseGain); noiseGain.connect(ac.destination);
+    noise.start();
+
+    // Layer 2: second bandpass for the "hollow tube" resonance
+    const buf2 = ac.createBuffer(1, bufLen, ac.sampleRate);
+    const d2 = buf2.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d2[i] = (Math.random()*2-1) * Math.pow(i/bufLen, 0.3);
+    const noise2 = ac.createBufferSource();
+    noise2.buffer = buf2;
+
+    const bp2 = ac.createBiquadFilter();
+    bp2.type = 'bandpass';
+    bp2.frequency.setValueAtTime(300, ac.currentTime);
+    bp2.frequency.exponentialRampToValueAtTime(1800, ac.currentTime + 0.5);
+    bp2.Q.value = 2.0;
+
+    const gain2 = ac.createGain();
+    gain2.gain.setValueAtTime(0.3, ac.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+
+    noise2.connect(bp2); bp2.connect(gain2); gain2.connect(ac.destination);
+    noise2.start();
+  } catch(e) {}
+  stopPulse();
+  gs.animating = true;
+  gs.ballVisible = false;
+  const startX = gs.ball.col, startY = gs.ball.row;
+  const targetX = bhCol, targetY = bhRow;
+  const duration = 900;
+  const startTime = performance.now();
+  const startQ = gs.ballQuat.slice();
+
+  // Diagonal spin axis for dramatic tumbling effect
+  const sn = Math.sqrt(0.09+0.49+0.36);
+  const spinAx = [0.3/sn, 0.7/sn, -0.6/sn];
+
+  if (bhAnimRAF) cancelAnimationFrame(bhAnimRAF);
+
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = t * t;
+
+    const px = startX + (targetX - startX) * ease;
+    const py = startY + (targetY - startY) * ease;
+    const scale = 1 - ease;
+    const spinAngle = t * t * 22;
+    const spinQ = qAxis(spinAx[0], spinAx[1], spinAx[2], spinAngle);
+    const currentQ = qNorm(qMul(spinQ, startQ));
+
+    draw(px, py, null, now);
+    if (scale > 0.01) drawFootball(px, py, currentQ, scale);
+
+    if (t < 1) {
+      bhAnimRAF = requestAnimationFrame(step);
+    } else {
+      bhAnimRAF = null;
+      gs.animating = false;
+      AB().visible = false;
+      draw(undefined, undefined, null, now);
+      const nextBHIdx = gs.balls.findIndex(b => !b.scored && b.visible);
+      if (nextBHIdx !== -1) {
+        gs.activeBall = nextBHIdx;
+        draw();
+        if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse();
+      } else {
+        showGameOver('GONE', 'Swallowed by a black hole');
+      }
+    }
+  }
+  bhAnimRAF = requestAnimationFrame(step);
+}
+
+function showGameOver(title, reason) {
+  document.getElementById('gameover-title').textContent = title;
+  document.getElementById('gameover-reason').textContent = reason;
+  document.getElementById('gameover-score').textContent = `Score: ${gs.score} goal${gs.score!==1?'s':''} in ${gs.round} round${gs.round!==1?'s':''}`;
+  document.getElementById('gameover-overlay').classList.add('show');
+}
+
+
+let touchStart = null;
+let usingTouch = false;
+
+function getNearestBallIdx(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+  let bestIdx = -1, bestDist = Infinity;
+  gs.balls.forEach((b, i) => {
+    if (b.scored || !b.visible) return;
+    const bx = b.col * CELL + CELL / 2;
+    const by = b.row * CELL + CELL / 2;
+    const d = Math.hypot(px - bx, py - by);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  return bestIdx;
+}
+
+function onPointerDown(e) {
+  if (e.type === 'mousedown' && usingTouch) return;
+  if (e.cancelable) e.preventDefault();
+  if (gs.animating) return;
+  const pt = e.touches ? e.touches[0] : e;
+  if (e.touches) usingTouch = true;
+  gs.hasInteracted = true;
+  // Always select nearest ball on down
+  const idx = getNearestBallIdx(pt.clientX, pt.clientY);
+  if (idx !== -1) { gs.activeBall = idx; draw(); }
+  touchStart = { x: pt.clientX, y: pt.clientY };
+}
+function onPointerMove(e) {
+  if (e.cancelable) e.preventDefault();
+}
+function onPointerUp(e) {
+  if (e.type === 'mouseup' && usingTouch) return;
+  if (!touchStart || gs.animating) return;
+  if (e.cancelable) e.preventDefault();
+  const pt = e.changedTouches ? e.changedTouches[0] : e;
+  const dx = pt.clientX - touchStart.x, dy = pt.clientY - touchStart.y;
+  touchStart = null;
+  if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx>0?'right':'left') : (dy>0?'down':'up');
+  kickBall(dir);
+}
+// Non-passive so we can preventDefault and stop browser scroll hijacking
+canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+canvas.addEventListener('touchend', onPointerUp, { passive: false });
+canvas.addEventListener('mousedown', onPointerDown);
+document.addEventListener('mouseup', onPointerUp);  // document-level so releasing outside canvas still fires
+
+// ── Keyboard arrows ───────────────────────────────────────────────────────
+// ── Keyboard (Enter/Space for screens only) ───────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    const startOverlay = document.getElementById('start-overlay');
+    if (startOverlay.style.opacity !== '0') {
+      startOverlay.style.opacity='0'; startOverlay.style.pointerEvents='none';
+      gs.puzzleMode = true; setupRound(1); return;
+    }
+    if (document.getElementById('win-overlay').classList.contains('show')) { nextRound(); return; }
+    if (document.getElementById('gameover-overlay').classList.contains('show')) { resetGame(); return; }
+  }
+});
+
+function obstacleAt(c, r) { return gs.obstacles.find(o => o.col===c && o.row===r); }
+function bombAt(c, r)    { return gs.bombs.find(b => b.col===c && b.row===r); }
+function blackholeAt(c, r){ return gs.blackholes.find(b => b.col===c && b.row===r); }
+function mudAt(c, r)     { return gs.muds.find(m => m.col===c && m.row===r); }
+function mirrorAt(c, r)  { return gs.mirrors.find(m => m.col===c && m.row===r); }
+function waterAt(c, r)   { return gs.waters.find(w => w.col===c && w.row===r); }
+function inNet(c, r)     { return gs.nets.some(n => n.col===c && n.row===r); }
+function otherBallAt(c,r){ return gs.balls.find((b,i)=>i!==gs.activeBall&&!b.scored&&b.visible&&b.col===c&&b.row===r); }
+function blocksSlide(c, r){ return obstacleAt(c,r) || mirrorAt(c,r); }
+
+// Mirror deflection: '/' and '\' redirect the ball 90°
+const MIRROR_DEFLECT = {
+  fwd: { right:'up',   left:'down', up:'right', down:'left'  },
+  bwd: { right:'down', left:'up',   up:'left',  down:'right' }
+};
+
+function snapshotState() {
+  return {
+    balls: gs.balls.map(b => ({...b, quat: b.quat.slice()})),
+    activeBall: gs.activeBall,
+    obstacles: gs.obstacles.map(o => ({...o})),
+    bombs: gs.bombs.map(b => ({...b})),
+    blackholes: gs.blackholes.map(b => ({...b})),
+    muds: gs.muds.map(m => ({...m})),
+    mirrors: gs.mirrors.map(m => ({...m})),
+    stuckInMud: gs.stuckInMud,
+    hintStep: hintStep,
+    hintActive: hintActive,
+    kickRotation: null, // filled in after animateSegments computes the move
+  };
+}
+
+let moveHistory = []; // stack of snapshots
+
+// Spin axes: swipe direction → rotation axis (Y for left/right, X for up/down)
+const SPIN_MULT = 2;
+const SPIN_AXES = {
+  right: [ 0,  1,  0],  // Y axis — right swipe rolls top of ball away
+  left:  [ 0, -1,  0],  // -Y axis — left swipe rolls top toward viewer
+  up:    [ 1,  0,  0],  // X axis — up swipe rolls front of ball upward
+  down:  [-1,  0,  0],  // -X axis — down swipe rolls front downward
+};
+
+function kickBall(dir) {
+  // Save state before kick
+  const _snap = snapshotState();
+  _snap._dir = dir; // store swipe direction for reverse spin
+  moveHistory.push(_snap);
+  if (moveHistory.length > 20) moveHistory.shift(); // cap history
+  document.getElementById('rewind-btn').style.opacity = '1';
+  document.getElementById('rewind-btn').style.pointerEvents = 'auto';
+
+  // Track if user moves freely without following hint
+  if (!hintActive) boardDiverged = true;
+
+  // Only track hint when arrow is currently showing
+  if (hintActive) {
+    const _hi = PUZZLE_HINTS[(gs.round-1) % PUZZLE_HINTS.length];
+    if (_hi && hintStep < _hi.length) {
+      const { ballId, dir: hintDir } = _hi[hintStep];
+      const hintBall = gs.balls.find(b => b.id === ballId && !b.scored && b.visible);
+      const correctBall = hintBall && gs.activeBall === gs.balls.indexOf(hintBall);
+      if (correctBall && dir === hintDir) {
+        // Correct move — hide arrow, advance step
+        hintStep++;
+        hintActive = false;
+      } else {
+        // Wrong move while arrow showing — full reset
+        hintActive = false;
+        hintStep = 0;
+      }
+    }
+  }
+  // Build full path as a list of segments, handling mirror bounces
+  const STEP = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
+  const segments = [];   // [{fromC,fromR,toC,toR,dir}]
+  moveHistory[moveHistory.length-1]._segments = segments;
+  const ab = AB(); if (!ab) return;
+  let c = ab.col, r = ab.row;
+  let curDir = dir;
+  let outcome = null;   // {type:'bomb'|'blackhole'|'mud'|'scored', cell?}
+  const MAX_BOUNCES = 20; // prevent infinite loops
+
+  for (let bounce = 0; bounce <= MAX_BOUNCES; bounce++) {
+    const step = STEP[curDir];
+    const segFrom = {c, r};
+    let hitMirror = null;
+
+    while (true) {
+      const nc = c + step[0], nr = r + step[1];
+      if (nc<0 || nc>=COLS || nr<0 || nr>=ROWS) break;
+      if (obstacleAt(nc, nr)) break;  // solid wall — stop before it
+      const hitBall = otherBallAt(nc, nr);
+      if (hitBall) { outcome = {type:'ballcollide', hitBall}; break; } // other ball blocks
+
+      const mirror = mirrorAt(nc, nr);
+      if (mirror) {
+        // Ball enters the mirror cell, then deflects
+        c = nc; r = nr;
+        hitMirror = mirror;
+        break;
+      }
+
+      c = nc; r = nr;
+
+      if (bombAt(c,r))      { outcome = {type:'bomb',      cell:{col:c,row:r}}; break; }
+      if (blackholeAt(c,r)) { outcome = {type:'blackhole',  cell:{col:c,row:r}}; break; }
+      if (inNet(c,r))        { outcome = {type:'scored'};  break; }
+      if (mudAt(c,r))        { outcome = {type:'mud'};     break; }
+    }
+
+    segments.push({fromC:segFrom.c, fromR:segFrom.r, toC:c, toR:r, dir:curDir});
+
+    if (outcome || !hitMirror) break; // done
+
+    // Deflect and continue from mirror cell
+    const newDir = MIRROR_DEFLECT[hitMirror.type][curDir];
+    const newStep = STEP[newDir];
+    const peekC = c + newStep[0], peekR = r + newStep[1];
+    const deflectedBlocked = peekC<0 || peekC>=COLS || peekR<0 || peekR>=ROWS
+                          || obstacleAt(peekC, peekR)
+                          || !!otherBallAt(peekC, peekR);
+
+    if (deflectedBlocked) {
+      // Can't go in deflected direction — bounce back the way we came
+      const REVERSE = { right:'left', left:'right', up:'down', down:'up' };
+      curDir = REVERSE[curDir];
+    } else {
+      curDir = newDir;
+    }
+  }
+
+  animateSegments(segments, outcome);
+}
+
+function animateSegments(segments, outcome) {
+  gs.animating = true;
+  stopPulse();
+  let idx = 0;
+
+  function runSegment() {
+    if (idx >= segments.length) {
+      // All segments done
+      const last = segments[segments.length-1];
+      gs.ball.col = last.toC; gs.ball.row = last.toR;
+      if (outcome?.type === 'bomb') {
+        triggerExplosion(outcome.cell.col, outcome.cell.row);
+      } else if (outcome?.type === 'blackhole') {
+        triggerBlackhole(outcome.cell.col, outcome.cell.row);
+      } else if (outcome?.type === 'ballcollide') {
+        gs.ball.col = last.toC; gs.ball.row = last.toR;
+        triggerCollisionJiggle(AB(), outcome.hitBall, last.dir);
+      } else if (outcome?.type === 'scored') {
+        // Trigger net wave at scoring cell
+        const scoredBall = AB();
+        if (scoredBall) {
+          netWave = { startTime: performance.now(), col: last.toC, row: last.toR };
+        }
+        AB().scored = true;
+        AB().visible = false;
+        gs.animating = false;
+        draw();
+        setTimeout(showWin, 500); // slight delay so wave plays
+      } else {
+        gs.stuckInMud = !!mudAt(last.toC, last.toR);
+        // Wall/block/mud jiggle — jiggle owns gs.animating
+        const jigBall = AB();
+        if (jigBall) triggerWallJiggle(jigBall, last.dir);
+        else { gs.animating = false; draw(); if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse(); }
+      }
+      return;
+    }
+
+    const seg = segments[idx++];
+    const {fromC, fromR, toC, toR, dir} = seg;
+    const distCells = Math.abs(toC-fromC) + Math.abs(toR-fromR);
+    if (distCells === 0) { runSegment(); return; } // zero-length skip
+
+    const distPx = distCells * CELL;
+    const ballR = CELL * 0.41;
+
+    // Short distance = slower ball, faster spin; long distance = faster ball, normal spin
+    const totalAngle = distPx / ballR * SPIN_MULT;
+    const msPer = Math.min(225, 100 + 125 / distCells);
+    const duration = Math.max(300, distCells * msPer);
+    const [ax,ay,az] = SPIN_AXES[dir] || SPIN_AXES.right;
+    const startQ = gs.ballQuat.slice();
+    const endQ = qNorm(qMul(qAxis(ax, ay, az, totalAngle), startQ));
+    const start = performance.now();
+
+    function step(now) {
+      const t = Math.min((now-start)/duration, 1);
+      const posEase = 1 - Math.pow(1-t, 2); // ease-out for position (decelerate)
+      // Rotation MUST use same ease as position to stay rolling-constraint correct
+      // (spin rate proportional to travel speed = realistic rolling)
+      const cx = fromC + (toC-fromC)*posEase;
+      const cr = fromR + (toR-fromR)*posEase;
+      const frameQ = qNorm(qMul(qAxis(ax, ay, az, posEase*totalAngle), startQ));
+      draw(cx, cr, frameQ, now);
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        gs.ball.col = toC; gs.ball.row = toR;
+        gs.ballQuat = endQ;
+        // If another segment follows, this was a mirror hit
+        if (idx < segments.length) {
+          const hitMirrorCell = gs.mirrors.find(m => m.col === toC && m.row === toR);
+          if (hitMirrorCell) {
+            // Start spring compress immediately (ball is touching spring NOW)
+            springAnim = { col: hitMirrorCell.col, row: hitMirrorCell.row, startTime: performance.now() };
+            mirrorSquish = { startTime: performance.now(), duration: 120, ballIdx: gs.activeBall };
+            // Spring boing sound
+            try {
+              const ac = getAC();
+              // Descending pitch sine — classic spring twang
+              const osc = ac.createOscillator();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(900, ac.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(140, ac.currentTime + 0.35);
+              const g = ac.createGain();
+              g.gain.setValueAtTime(0.5, ac.currentTime);
+              g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+              osc.connect(g); g.connect(ac.destination);
+              osc.start(); osc.stop(ac.currentTime + 0.4);
+              // High harmonic layer — metallic ping
+              const osc2 = ac.createOscillator();
+              osc2.type = 'triangle';
+              osc2.frequency.setValueAtTime(2200, ac.currentTime);
+              osc2.frequency.exponentialRampToValueAtTime(600, ac.currentTime + 0.25);
+              const g2 = ac.createGain();
+              g2.gain.setValueAtTime(0.18, ac.currentTime);
+              g2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
+              osc2.connect(g2); g2.connect(ac.destination);
+              osc2.start(); osc2.stop(ac.currentTime + 0.25);
+            } catch(e) {}
+            // Keep drawing during compress phase, then launch next segment
+            const compressMs = 150;
+            const compressStart = performance.now();
+            function holdAtMirror(now) {
+              draw(toC, toR, endQ, now);
+              if (now - compressStart < compressMs) requestAnimationFrame(holdAtMirror);
+              else runSegment();
+            }
+            requestAnimationFrame(holdAtMirror);
+            return; // don't call runSegment yet
+          }
+        }
+        runSegment(); // immediately chain next segment
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  runSegment();
+}
+
+function showWin() {
+  gs.score++;
+  document.getElementById('score-display').textContent = gs.score;
+  document.getElementById('win-sub').textContent = `Round ${gs.round} complete!`;
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+function nextRound() {
+  document.getElementById('win-overlay').classList.remove('show');
+  gs.round++;
+  document.getElementById('round-display').textContent = gs.round;
+  gs.puzzleMode = true;
+  gs.hasInteracted = false;
+  setupRound(gs.round);
+}
+
+function resetGame() {
+  document.getElementById('gameover-overlay').classList.remove('show');
+  document.getElementById('win-overlay').classList.remove('show');
+  gs.animating = false;
+  gs.round = 1; gs.score = 0;
+  document.getElementById('round-display').textContent = '1';
+  document.getElementById('score-display').textContent = '0';
+  gs.puzzleMode = true;
+  gs.hasInteracted = false;
+  setupRound(1);
+}
+
+// ── Puzzle definition ────────────────────────────────────────────────────
+// 1=block 2=net 3=ball 4=fwd(/) 5=water 6=mud 7=blackhole 8=bwd(\) 9=bomb
+// ── Puzzle text format ───────────────────────────────────────────────────
+// n=net  b=ball  /=fwd mirror  \=bwd mirror  #=block
+// w=water  m=mud  h=hole  *=bomb  .=empty
+const PUZZLES = [
+`
+. b . b . .
+. . . . . .
+. . . . . .
+. . . . # .
+. . . . n .
+. . . . . .
+`,
+`
+. h . n / b
+. . . * . .
+. . . . b .
+. . . . . .
+. . . . . .
+b . . . . .
+`,
+`
+b * . . . .
+. . . . . b
+. n . h . /
+/ . . . . .
+. . . . . .
+. . b . . .
+`,
+`
+. b . . . .
+. . . . b .
+. . . . . .
+. . . b \ h
+/ . . . . .
+n \ . . . .
+`,
+`
+. . . . . .
+. . . . . .
+. . . . b .
+h . . . . .
+n . . . * .
+h b . . b .
+`,
+`
+. . b . m b
+. . . . . *
+h . . . . .
+n . . . . .
+h b . . . .
+. . . . . .
+`,
+`
+. . . . . /
+. b h . . .
+. . . . . .
+. . . n . .
+. . . / . .
+h . . b . b
+`,
+`
+b \ . . . n
+b . h . . .
+/ b . . h .
+. . . . . /
+. . . . . .
+. . . . . .
+`,
+`
+. . . . . b
+. h . . . .
+. . b . . .
+. . b . . .
+. . . . . .
+h n h . . .
+`,
+`
+. . . . h .
+b . . . . .
+h n . h . b
+. . . . . *
+. . . . . .
+b . . . . .
+`,
+`
+. h . . . .
+. . . . . .
+. . . . . h
+n . . . . .
+. / . b . b
+h b . . . .
+`,
+`
+\ . . b . .
+. . . . b .
+h . n . . .
+. . . . . h
+. . h . . .
+b . . . . .
+`,
+`
+. . . b . .
+* . . . b .
+. h . . \ h
+. . . . . .
+. . n h . .
+. b . . . .
+`,
+`
+. . . . . h
+. b * . . .
+b . . h . .
+b / . . . n
+. . \ . . .
+. . h . . .
+`,
+`
+. . b \ . .
+\ . . . . b
+. . . . . .
+. . . . h .
+n . . . . h
+. h . * b .
+`,
+`
+n . . . . h
+h . . . . .
+b . . . h .
+. . . . . b
+. h . . . .
+. . . . . b
+`,
+`
+. . . # . b
+* . . . b /
+. . h . / .
+b . . . . .
+. . . n . .
+. . . . . .
+`,
+`
+. . . b . b
+. . . . . .
+. # . . . .
+. . . . . h
+. n . . . .
+h . b . . .
+`,
+`
+. h . b . .
+. . . . . .
+. . . . . h
+. n . . . .
+b . . . / b
+/ . # . . .
+`,
+`
+. . . . b .
+. # . h . .
+. . . . b .
+b . . . . .
+. . . . h h
+/ . . . . n
+`,
+`
+. . b . b .
+. . h . . .
+# . . . # /
+. . . . . .
+. . n . . .
+. . . . b .
+`,
+`
+. # . b . .
+. . # . . b
+. . . . . .
+. n . \ . .
+. . b . . .
+. . . . h .
+`,
+`
+. . . b . .
+. . . # . .
+. b . . . .
+h # . n . h
+. . . . . .
+. . . . b .
+`,
+`
+# . . . . *
+n . . . . .
+. . h . b .
+. h . . . .
+. h b . . .
+. # . . . b
+`,
+`
+. b . b . /
+h h . . . .
+. . . . . .
+. / b h . .
+. # # . . .
+. . . n . .
+`,
+`
+. . . . . .
+. . . b . .
+b . / . . .
+h . n . . .
+. . . . . .
+. . . . . .
+`,
+`
+. . . . / .
+. . n . . .
+. . . . . .
+. b h . b .
+. / . . . .
+. . . . . .
+`,
+`
+. . # n . /
+. . b . . .
+. . . . . .
+b . . \ . .
+. . . . . .
+. . . . . .
+`,
+`
+. . . / . .
+. . . . . .
+. b \ . n .
+. . . . . /
+. b . . \ .
+. . b . . .
+`,
+`
+. . b . / .
+. . b / . .
+b . / . . .
+. * . . . n
+. . . . . .
+/ . . . . .
+`,
+`
+\ . . b . b
+. . . . . b
+. . \ . . .
+. . . \ . .
+. . . . . \
+. / n . * .
+`,
+`
+b . b / . b
+\ . h . . .
+. . . . . .
+. . . . n .
+. / . . . .
+. . . . . .
+`,
+`
+. . h . . .
+. . . b . .
+. . . b . .
+. n . . * .
+. . . . . .
+h . . . b .
+`,
+`
+. . . b . b
+. . . h . .
+. . n . . .
+. . . . . .
+\ h . . . .
+. . . b . .
+`,
+`
+. . b \ n .
+b . . . . h
+. b . . . .
+. . . . . .
+. . . . h .
+. . . . . .
+`,
+`
+b h . . b h
+. . . . . n
+. . . . . .
+* . . . . /
+. . . . . .
+. b . . . .
+`,
+`
+/ . . . . *
+h . n . . .
+. . . . . b
+. . . . . .
+. . h b . .
+. . . . b .
+`,
+`
+b . . h . .
+. b . . . .
+. . . . . .
+\ . . . . .
+. . n . . *
+. h . b . .
+`,
+`
+. . b . . b
+. . / . h .
+h . . . . *
+. . . . b .
+. . n . . .
+. . . . . .
+`,
+`
+. . . . . /
+. . . . . .
+. b . . . .
+. . \ . . b
+. b . . . .
+. . h . n h
+`,
+`
+\ . . . . .
+. n . h b .
+. . . . . b
+. \ . . h .
+. . . b . .
+. . . . . .
+`,
+`
+b b \ . b .
+h . . n . h
+. . . / . .
+. . . . . .
+. . . . . .
+. . . . . .
+`,
+`
+b . . . h .
+. . b . . /
+\ . h . b .
+. . . . . .
+. . . n . .
+. . . . . .
+`,
+`
+. . . . \ .
+. b \ . . .
+h . b . . .
+. . . n h b
+. . . . . .
+. . . . . *
+`,
+`
+/ . . . . .
+. . . . . .
+. . . . b .
+h n * \ b .
+. h . . . .
+. . . . b .
+`,
+`
+. . . h * .
+h n . . . /
+. \ . . . .
+. . b b . .
+. . . . . .
+. . . b . .
+`,
+`
+/ . b b h .
+. . . . . .
+h b . . * .
+. . . . . n
+. . . . . .
+. . . . . \
+`,
+`
+b \ . . n h
+. . . . . .
+b * . . . .
+h . . . / .
+. . . . . .
+. b . . . .
+`,
+`
+. . . . h .
+. . . . . b
+h n . m \ b
+. . \ . . .
+. . . . . .
+. . b * . .
+`,
+`
+. . . . h .
+. . . n . .
+\ h b . * .
+. b . . . /
+. . . \ . .
+b . . . . .
+`,
+`
+. . . . . /
+b . . . . .
+. . . . h .
+b b . / . *
+h . . . . .
+. . / . . n
+`,
+`
+. h . n . .
+b . . . . h
+b . . . h b
+. . . . . .
+. . . . . .
+. . . . . .
+`,
+`
+. . h . . .
+. . . . . b
+. . . b . .
+. . n . . h
+* . h . . .
+. . b . . .
+`,
+`
+b h . b . .
+. . . . . .
+b . h . . .
+. . . . . .
+. h n . . .
+. . * . . .
+`,
+`
+b b * . . .
+b h . . . .
+. . . . . .
+h . . . . h
+. . . . . .
+. . . n . .
+`,
+`
+. \ . . n h
+. b . . . .
+. b . . . h
+. b . . . .
+. . . . . .
+. . h . . .
+`,
+`
+b / . . . .
+. . . . . .
+. . . . n h
+. . . * . .
+b h . . . .
+h . b . . .
+`,
+`
+h n . h . .
+. . . . b .
+. . . . . b
+. * . . / .
+. . h . b .
+. . . . . .
+`,
+`
+. n . h . .
+h \ . . . .
+. . . . . .
+. b . . h .
+. b . . . .
+b * . . . .
+`,
+`
+. . . . . h
+. . . . . n
+h . . b \ .
+. . . h . /
+. . . . . .
+b . b . . .
+`,
+`
+h h . . . b
+. . . . . \
+. . . . . .
+b / . . . n
+. . / . . .
+b . . . h .
+`,
+`
+. . . b . h
+. . . . h .
+. b . / . .
+. . . . . b
+. . h . . \
+. / n . . .
+`,
+`
+. . . . b /
+h / n . . .
+. . h . . b
+. . . h . .
+. . b . . .
+. . . / . .
+`,
+`
+\ . . . . .
+n . \ . . .
+. . . . . h
+. . . \ b .
+h / . . b b
+. . h . . .
+`,
+`
+. b . h . .
+h b b . . .
+. . . n . .
+. . . h . h
+. . . . . .
+. . . . . .
+`,
+`
+. . . . / .
+. . . . . .
+. \ n # . .
+b b . . . .
+. . . . . .
+b * . . . .
+`,
+`
+. . . . b .
+. . . b . .
+. . . . . *
+. . . . # b
+. . . / n .
+. . h . . .
+`,
+`
+/ . * . . .
+. . n # . .
+. b . . . .
+. . h . . b
+. . . . . b
+. . . . . .
+`,
+`
+b . b h . .
+# . h . . .
+. . . . . .
+. . b . . .
+. . . . n .
+. . . . . .
+`,
+`
+. . . . . .
+. . . . . b
+. n . . . .
+. . . h . .
+. . . . . #
+. h . b . b
+`,
+`
+* . . b . .
+. . . # . .
+. . h . . b
+. . . n . h
+. . b . . .
+. . . . . .
+`,
+`
+. . . . . h
+. . n . . .
+. # . . . .
+h b . . . .
+. . . . b b
+. . . * . .
+`,
+`
+. h . . . .
+. . . . . b
+. . . . . .
+. n # . . .
+h . . . b .
+* . . b . .
+`,
+`
+\ . . . . .
+. . n . . h
+. . h . . .
+. b . . . b
+. # . . . .
+b . . . . .
+`,
+`
+b . . b # .
+. . b . . .
+h . h / . .
+. . . . . .
+. . . n . .
+. . . . . .
+`,
+`
+. b . h . .
+. . * . b /
+. . . n . .
+. h . . . .
+. . . # . .
+. b . . . .
+`,
+`
+h . b . . .
+. . . h n .
+. . . . / .
+. . . . . .
+b \ . . . #
+. . . . . b
+`,
+`
+. . b . h .
+b . . . \ .
+. . / . . .
+. . . . . .
+h . . . * n
+. . . . b #
+`,
+`
+. / . . . .
+n h b . . .
+. . h . . .
+. . / . b .
+. . . . * .
+# . . . b .
+`,
+`
+. . . . . #
+b . . b / .
+. . \ h . .
+h . . . . n
+. . . . . /
+. . b . . .
+`,
+`
+. h . . . .
+. h . . . .
+. / . b . .
+. # \ b . .
+n . * . . .
+. . . \ m b
+`,
+`
+. * . . b .
+. . . . . .
+b . . . . h
+. . . . . .
+. . . . . n
+. # b h . h
+`,
+`
+b . . . * .
+. . # . . .
+. . . . . .
+. . h n . .
+b h b . . .
+. h . . . .
+`,
+`
+b . . . . *
+. . . . . b
+. . h b . .
+. . . h . .
+. . . . . h
+. # . n . .
+`,
+`
+. / . . . b
+. b . h . .
+. . . . . .
+. b . . . .
+. . . . h h
+. # . . . n
+`,
+`
+. . b . . .
+. . . b . .
+. b . h . .
+. # . . . .
+# n . . . .
+. . . . . \
+`,
+`
+. . # . h .
+\ . n . # .
+. . . . b .
+b . . . . .
+. . . . . .
+. * . b . .
+`,
+`
+. h . . . .
+. . n # b .
+. \ . . . .
+. . . . . .
+. . . . \ b
+b . . . . #
+`,
+`
+. # . b . .
+. . # . n .
+. . . . h .
+. . . . . .
+. . . . . h
+b . . . . b
+`,
+`
+. . . . b .
+# * . . b .
+. . h . . .
+. / . . . .
+. h . . . .
+. . n # b .
+`,
+`
+. n . . . .
+. h . . . .
+. . # # . .
+h . . b . h
+. . b . . .
+. . . . * b
+`,
+`
+. b . . h .
+# . . . . n
+# . . . . .
+* . . . b #
+. . . b . .
+. . . . . .
+`,
+`
+. . m h . .
+b / . . . b
+# . . . n .
+. . . / . .
+. # . . \ .
+. b . # . .
+`,
+`
+h . . b . b
+. . . . . #
+. . h . . b
+n . . # # /
+. . . . . .
+. . . . . .
+`,
+`
+. b . h . .
+. . . . b #
+b . # . . .
+. # . . . .
+# . . . h n
+. . . . . .
+`,
+`
+. * . b b .
+. . . . . .
+. . . . . .
+/ . . . . .
+. . . . . .
+. . n h . .
+`,
+`
+b b . . . .
+. . . . . /
+. / # . . .
+. . . . . .
+. . n . . .
+\ . . . . .
+`,
+`
+. # . . . .
+. . . . . .
+. n . h b b
+. m . . \ .
+. . . . . .
+. . . . . .
+`,
+`
+b . # . . .
+. . * \ . .
+. . . . . .
+. h . . . .
+b . / n . .
+. . . . . .
+`,
+`
+. * . b . .
+. . . . . .
+. b . . h .
+. \ . h . .
+. . . . . .
+/ . n . . #
+`,
+`
+h . . n \ .
+. \ . . m .
+# . . / . .
+b . \ . . .
+. . . . . .
+. b . . # .
+`,
+`
+. . . . . /
+. . . . . .
+. . n . . .
+. b . . / b
+. / . . . .
+. . . * b .
+`,
+`
+. . . . . b
+. h . . b .
+. . . . . .
+. n . . . .
+. . . . . .
+h . . b . \
+`,
+`
+. h n . . .
+b . . . h \
+. . . . . .
+. . . . . .
+. . . . b b
+. . . * . .
+`,
+`
+\ . . . . b
+h . . . . b
+. . . . n .
+. . . . . *
+. . . . . b
+. . . h . .
+`,
+`
+. . . h . b
+\ . . . . .
+n * . . . .
+. . . . . .
+h . . . . .
+. . b m . b
+`,
+`
+b b . . h \
+. . . n . .
+h . . . . .
+. . . / b .
+. . . . . .
+. . . . . .
+`,
+`
+. . . * . .
+b . / . . .
+h . . . . b
+b . . . . .
+. n h . . /
+. . . . . .
+`,
+`
+. h . . . .
+n \ b . . .
+/ . . b . .
+h * . . . .
+b . . . . .
+. . . . . .
+`,
+`
+. . . h . b
+. * . b . .
+. . . . . .
+. . / . . .
+. n h . . b
+. . . \ . .
+`,
+`
+b b . . h .
+. . / . . b
+m . . / n .
+h / . . . .
+. . . . . .
+. . . . . .
+`,
+`
+b b . h . .
+. h . . . .
+. . . b . /
+. . . / . .
+. . . . / .
+. \ . n . .
+`,
+`
+. . . . b /
+. . / . . .
+. \ . h . .
+. b * . . n
+/ . . . . h
+. b . \ . .
+`,
+`
+. . . . . *
+. . . n . .
+h b b . . .
+. . . h . .
+. h . . . .
+. . . b . .
+`,
+`
+b . . . . .
+. . / . . h
+h . n . . .
+. . h b . .
+. . . . . b
+. . . . . .
+`,
+`
+h . . . . .
+. . . n . .
+b . \ . . .
+b . . h . .
+. . b . . .
+. . . . . h
+`,
+`
+. n . . h .
+. . . . . .
+. . . h . b
+. . . . . *
+. . h . b .
+. . \ . b .
+`,
+`
+\ b b . . .
+h . / . . .
+. . . . h b
+. . . . . .
+. . . . n h
+. . . . . .
+`,
+`
+. . h . . b
+. . . . . .
+h b h . . b
+. \ . . . .
+. . . . . \
+. . n . . .
+`,
+`
+. h . . . .
+. . . . . .
+. . . . b .
+. . . . . .
+. . h . b .
+h . n . h b
+`,
+`
+. . . . . .
+. . n . . .
+h . h . . .
+. . . . b h
+. . b . . .
+. . b . h .
+`,
+`
+. . b h . .
+. . h . . .
+b . . . . .
+b h n . . .
+. . . . . .
+. . . . . h
+`,
+`
+h . . . . b
+. . b . h b
+. . . . n .
+. . . . . .
+. h . . . .
+. . h * . .
+`,
+`
+. . . . . b
+. . . b . .
+. / h . . b
+h n . h . .
+. . . . . .
+. h . . . .
+`,
+`
+. . b . h .
+. . . . . h
+b . h . . .
+. b . * . n
+. . \ . . .
+. . . h . .
+`,
+`
+. . . . . /
+. b . . . h
+. . b . \ .
+b . . . h .
+. . . . . .
+h . . h . n
+`,
+`
+b . . \ . .
+. . . . . .
+. n / . . .
+. . . # b .
+\ . . . . .
+. / b . . .
+`,
+`
+. . b b # .
+. . . . . .
+. . . . . .
+. . b . . .
+. . . h n .
+. . . . . \
+`,
+`
+. . b . . .
+. . . . / h
+* . . . . .
+. . . . n .
+. . . . . .
+. b b . # .
+`,
+`
+b b . . . .
+. . . . / .
+# . . . n .
+. . . . h \
+. . . . . .
+. b . . . .
+`,
+`
+. . . . . .
+. . . * . \
+. . . . . .
+. n . . . .
+. . . # \ .
+b h . b . b
+`,
+`
+. . b . # .
+b . . / . .
+\ . h . . .
+. . . . . b
+. / n . . .
+. . . . . .
+`,
+`
+. / . . . n
+. # . . . .
+. . \ . . .
+. . . \ . .
+. b b . . h
+. b . . * .
+`,
+`
+b . . h . b
+b . . . . .
+. . . . . .
+. . . . . .
+h . . . . .
+. n # . . .
+`,
+`
+. h b b b .
+. . . # . .
+. n * . . .
+. . . . . h
+. . . . . .
+. . . . . .
+`,
+`
+. . h . . .
+b . . h . b
+. . . . . .
+. . . . . .
+. . . . b .
+/ . n . # .
+`,
+`
+h b b . . .
+. . . n # /
+. . . . . .
+. . . h . .
+. . . . . b
+. . * . . .
+`,
+`
+. . . b . .
+b . / b . .
+h . . . . .
+. . . # . h
+n . . . . .
+* . . . . .
+`,
+`
+. b . b . h
+. . . / . .
+. # h . . .
+. b . . . .
+* . . n . .
+. . . . . .
+`,
+`
+b . . . b .
+. . . . . .
+. . . . . /
+. . . / h .
+b . . . . .
+. . h n . #
+`,
+`
+. h . . . .
+. . . . / b
+. . . b . .
+. . n \ . b
+h . . . # .
+. . . . . .
+`,
+`
+. . / . . n
+. . . . h .
+. . . . b *
+b . . h . /
+b . # . . .
+. . . . . .
+`,
+`
+n . . . h .
+. . . . . /
+\ . . h . b
+. . # b . .
+. . . . . .
+. * . b . .
+`,
+`
+. . . . h .
+. . . . . .
+. . b # b b
+. n h . . .
+. . . . . .
+. . h . . .
+`,
+`
+. . . * b .
+. . # . . .
+. . . . . .
+h . b . . .
+. n . h . .
+h . . . b .
+`,
+`
+. \ . . . b
+. # . . . .
+. . . . . b
+. h . . . .
+. n . h . b
+. h . . . .
+`,
+`
+. # . b . .
+. . b . . .
+. . h . b .
+. . . . . .
+/ . . h . .
+n . . h . .
+`,
+`
+. . h . . .
+. . . . . .
+b . . . . b
+. . # n . .
+. . m . . .
+h b . . h \
+`,
+`
+. . b . . .
+. . . . . .
+# . b . * .
+n . \ b . h
+. h . h . .
+. . . . . .
+`,
+`
+# . h . . .
+\ . . n . .
+. b . * . h
+. / b . . .
+. b m . . h
+. . . . . .
+`,
+`
+b # . . n .
+. . . . . .
+* . . . h .
+. h h . . h
+. . . . . .
+. b . . . b
+`,
+`
+. b . . . .
+. . . # . h
+. b . . * .
+. . . . . .
+. h h . n .
+h . . m . b
+`,
+`
+. . b . h n
+. h . . . .
+. . . . . .
+. / . . . .
+b . h b . h
+. # . . . .
+`,
+`
+. h . b . /
+. n . . . .
+h . # . . .
+. h b . . .
+. . h . . .
+. . . . b .
+`,
+`
+. b . . . b
+. h b h . .
+h . # . . h
+. . . . . .
+. . . . / .
+h . . . . n
+`,
+`
+. . b . / n
+. . . * . .
+. . . # # \
+. . . b . .
+b . . . . .
+. . . . . .
+`,
+`
+n . . . # .
+. / . . . .
+. . . . . .
+. . / # . *
+/ . . b . .
+b . b . . .
+`,
+`
+b \ . . n .
+. . . # . /
+\ . . . # .
+. . . . b b
+. . . . . .
+. . . * . .
+`,
+`
+. b . . . .
+. # . b . /
+. . b / . .
+. . \ . . .
+/ . . n . #
+. \ . . . .
+`,
+`
+. . . . . .
+. # n # b *
+. . \ . . .
+. . b . . .
+. . . . . .
+. . b . h .
+`,
+`
+b . . * . .
+. m h . . b
+. . . . . .
+. b . . . .
+. # . . . .
+# . n . . \
+`,
+`
+b . . . b h
+. . n . . .
+. . # / . .
+* . . . # b
+. . . . . .
+. . \ . . .
+`,
+`
+. . . . # .
+n . / . . .
+. . . . . #
+. . . / . .
+/ h . . . b
+. . . b . b
+`,
+`
+. / . # . .
+b . h . b .
+. . . . . .
+b . . . . .
+. . . . \ .
+/ . . . n #
+`,
+`
+. . . . # .
+. . . # b .
+h . . . \ .
+. \ . . . .
+. . . . . *
+. b b \ n .
+`,
+`
+\ . . . b .
+. # / . . .
+b . . . / .
+. . . . . \
+. # . . n .
+. . . b h .
+`,
+`
+b # . . . .
+m . . . . h
+. b . . . .
+. b . . . .
+. . . . . .
+. . # n . h
+`,
+`
+. . . . h b
+. n # . . .
+. . / . . b
+. h . . . .
+. b . . . .
+# . . . . .
+`,
+`
+. / . . n h
+. . . . . .
+. . . . . b
+. . h . . .
+. # . . # b
+b . . . . .
+`,
+`
+. . . . . .
+# . . . n #
+. h . . . .
+. . \ . h .
+. b . . b .
+. . . . . b
+`,
+`
+h . . b . .
+. . . b . .
+h . b . . \
+. . . . . .
+. n # . . #
+. . . * . .
+`,
+`
+b . . m . .
+. n . . . .
+h . h / # .
+. . . . . .
+b # . . . .
+. . . b * .
+`,
+`
+. . # b h .
+. . # . . .
+. / b . . .
+. . . . . .
+. * . . . /
+n h . . b .
+`,
+`
+. h . . . .
+. . . . . .
+. . . . . .
+b b . h . .
+. . . # . .
+b . # . n h
+`,
+`
+. h . n . #
+. . . . . .
+. b . . h b
+b . . . . h
+# . . . . .
+. . . . . .
+`,
+`
+# . . . . b
+b . . h . .
+. . . . . h
+. . n . . .
+. h # . . .
+. . . b . .
+`,
+`
+. . . \ . .
+. . . h . .
+. . b h . .
+. . b # n .
+# . h . . .
+. . . b . .
+`,
+`
+h . . * n .
+b . . . # .
+b . . . h .
+. . # . . .
+. h . . . h
+. . b . . .
+`,
+`
+. b . . b .
+. h . b . #
+. . . . . /
+. . . # . .
+. . h . h .
+h . . n . .
+`,
+`
+# . . h . .
+# . . . / .
+. b . / . .
+. h b h . b
+/ . h . . h
+. . . . n .
+`,
+`
+. . . . . .
+. # . . . .
+. n # . . .
+* . . . . b
+. . . . . .
+. # b . b .
+`,
+`
+# b . b # .
+. # . . . .
+. . . . n .
+. . . . . .
+. . b . . .
+. . . * . .
+`,
+`
+* . # . . .
+. . n . # \
+. . . . . .
+. . # b . .
+. . . . . b
+b . . . . .
+`,
+`
+. . . . . *
+. b . # . .
+. . . # . .
+b b # . n .
+. . . . . .
+. . h . . .
+`,
+`
+. h . . . .
+. # n . h .
+. . # . b .
+. . . . . .
+. . . . b .
+. . b # . .
+`,
+`
+h . b . . .
+. . . . . b
+. n \ h . .
+h . # . . #
+. . . . # .
+b . . . . .
+`,
+`
+\ . . . # .
+. . . . . n
+b . # . h .
+. . . . . .
+h h h . . .
+b . b . . #
+`,
+`
+h . . . . .
+. . . . . .
+. . n . . .
+b \ . . b .
+. b . . * .
+b . h . . .
+`,
+`
+h . h . n h
+. . . # . .
+. . . \ . b
+. . . . . b
+. b * . . .
+b h . . . .
+`,
+`
+. . . h . .
+. . n . . .
+. h . b h .
+. . h . b .
+b . . . . h
+. # . . . b
+`,
+`
+. . / n # .
+# b . h . .
+\ . . b . .
+. . h b . .
+. . b . . .
+. . . . . .
+`,
+`
+. . / . . .
+. \ . n . .
+. . . . . /
+. . . h . b
+. . . . . b
+. b . . . .
+`,
+`
+. / . . . b
+. h . . b .
+. . . . . .
+. . . \ . b
+. . n . \ .
+. * . . . .
+`,
+`
+. . . . / .
+. b / . . *
+. . . \ n .
+. . . . . .
+. . . b h /
+. b . . . .
+`,
+`
+. h . . . .
+n . * . . .
+h . . . . .
+b b . . . .
+. . . . . .
+. b . . . .
+`,
+`
+b . . . \ n
+h . . . . .
+. . . . . h
+. . . . . b
+. b . . . .
+. . . . . .
+`,
+`
+. \ n . . .
+\ . . . . h
+. . . . . b
+. . . . . .
+. . . . . .
+b b . h . .
+`,
+`
+. . . . h .
+b . / . . .
+. . . . n .
+h . . . . .
+. . b . . .
+. b . / . .
+`,
+`
+h . . . . .
+b . . . . .
+. . . . / .
+. . . . b .
+. . n . . .
+/ . . b . h
+`,
+`
+\ . . . . .
+. . . * b h
+n . . . . .
+h . . . . b
+. . . . / .
+. b . . . .
+`,
+`
+. . . . b .
+h . . / . h
+. . . n . .
+b . . . . .
+. . . . . .
+. . b . \ *
+`,
+`
+. n h b . .
+. . \ b b .
+h . . / . .
+. . . . . .
+. . . . . *
+. . . . . .
+`,
+`
+. . \ . . b
+h . . . . .
+. . . . . b
+. . . . . .
+. b h . . /
+. / n . . .
+`,
+`
+. . . n / b
+. h . . . /
+/ . . . . .
+b . . . . .
+. b . h . .
+. . . \ . .
+`,
+`
+. h . . . .
+. . . . b .
+. . . . . .
+. . . . b .
+h . . n h .
+b . . . . .
+`,
+`
+. . b . . h
+b . . h . .
+h . . n . .
+. . . . . .
+b . * . . .
+. . . . . .
+`,
+`
+. . . . . .
+. . . . . b
+h . . . . .
+. * . . . .
+. . . h b m
+n . h . . b
+`,
+`
+h . . h n .
+. . . . . .
+. . . . . .
+. . . . \ .
+. . . b . h
+. b . . b .
+`,
+`
+. . . . . b
+. . . . / .
+b . b . . h
+. . . . . .
+. . . . . .
+h . . h n .
+`,
+`
+. h . b . b
+. n . h . .
+. . . . . .
+. . b . h .
+. . . . . .
+. . . . / .
+`,
+`
+. . . . . h
+. . \ . . b
+. . . . . .
+. . b . . .
+. b . . . h
+. . h n . .
+`,
+`
+. h . . . .
+. . n h . .
+. . / . b .
+. b . . . .
+h . . . . .
+. . . b . .
+`,
+`
+\ . . . . .
+. . . . . .
+. . . . . b
+. h . . . b
+. . . . . h
+b . . h n .
+`,
+`
+. h . . . .
+. . . h n .
+. . . . h *
+b / . b . .
+. . . . . .
+. . . . b .
+`,
+`
+. . . . . .
+. . . b b .
+b . h . / .
+. . . * . .
+h . . . n .
+. . . . . h
+`,
+`
+. . . \ . h
+. . . . . .
+h . n h . .
+. . \ . . .
+. b . b . .
+. . . . . b
+`,
+`
+\ . b . h .
+. . . . . .
+. b . . . .
+. h . . . b
+. . / . n .
+. . . . . h
+`,
+`
+. . . . . .
+. . . n h .
+h . . \ . h
+b . . . . .
+. / . . . b
+. . . . . b
+`,
+`
+. . . . / .
+h n . . . .
+. h b . . h
+. . / . . .
+. . b . . .
+. . b . . .
+`,
+`
+. . h . . h
+h . . . . .
+. n . . . .
+. . b / . .
+. . . . . .
+/ . b . . b
+`,
+`
+b . . . . .
+. . . . . b
+. . . h h .
+b h . . . \
+/ n . . . .
+. . . . . .
+`,
+`
+. . h . b .
+. . h . b h
+. . . . . .
+. n . . \ b
+. . . . . .
+. . . / . .
+`,
+`
+. . . . . b
+. h \ b . b
+\ . . h . .
+. . n . h .
+. . . . . .
+. . . . . .
+`,
+`
+\ . b . . .
+. . h . h b
+. b . . . .
+. . . . n .
+m \ . . . h
+. . . . . .
+`,
+`
+b m . . . .
+. . . b . .
+. \ . . . b
+h . / . * .
+. . . h . h
+. n . . . .
+`,
+`
+. . b . . /
+. . . . h .
+. b . / . .
+\ b . h n .
+. h . . . .
+. . . . . .
+`,
+`
+h . . . . .
+h . . b b h
+. . . . . .
+. n . . . .
+b h . . . .
+. . . . . .
+`,
+`
+. h . . . .
+b . . . . .
+b b . . . h
+h h . . . .
+. . . . . n
+. . . . . .
+`,
+`
+. . . . b b
+. . . . . .
+h . * . . .
+. . . . h .
+. h . b . .
+n . . h . .
+`,
+`
+. . . . . .
+. . . h . .
+h . n / b .
+. h . . b .
+. . . h / .
+. . . b . .
+`,
+`
+. b . m . .
+. h . h . .
+. b . / . .
+. . . n . h
+\ h . . b .
+. . . . . .
+`,
+`
+. . . h . b
+b / . . . .
+* h . . b .
+. . . h . .
+. . \ . . .
+. n . . h .
+`,
+`
+\ b h . . .
+n . . . . h
+. \ . . . .
+. . . / . b
+. h . . . .
+h . b . . .
+`,
+`
+. . . . . .
+. h . . b .
+. . . h h .
+. . . . . .
+. . . . b .
+. . h n h b
+`,
+`
+. . . . . b
+. . . b . .
+# . . . . .
+n . h . . .
+/ . . b . .
+. . . . . .
+`,
+`
+. b . . . .
+. . . . . .
+. . . / # .
+. b . . . .
+. . / n . .
+. b . . . h
+`,
+`
+. \ b . . b
+. . . * . .
+n h . . . .
+\ . . . . #
+. . . . . .
+. . . . b .
+`,
+`
+. \ . . . .
+b . . . . /
+b h . . . .
+. . . . . .
+* # n . . .
+. . . . b .
+`,
+`
+. . . h . .
+. b . . . .
+. . . . / .
+b / . n . .
+# . . . . *
+. . b . . .
+`,
+`
+. . . b b .
+# b . . . .
+* \ . . . .
+. . . . . .
+. n . \ . .
+. . h . . .
+`,
+`
+. . . . . /
+. . . . . b
+. . n / . b
+. . h . . .
+/ . . . . .
+. . . . # b
+`,
+`
+. . . . . /
+. . . . . .
+. h . b . .
+. . . # n .
+. \ . . . .
+b . b \ . .
+`,
+`
+. b . . . /
+. / . . # .
+* . b h . n
+. . . . m .
+. . . \ . .
+. b . . \ .
+`,
+`
+b . . h . n
+. . # . . .
+. . . b . h
+. . . . * .
+. . . . . .
+b . . . . .
+`,
+`
+. . . b b .
+. . . . / .
+# . . . n h
+. . . . h .
+. . . . . .
+. . . b . .
+`,
+`
+* b . . . .
+. . . . . .
+. . # . . .
+. \ . . b .
+. n . h . b
+. h . . . .
+`,
+`
+. . . # . .
+. n . h b .
+. * . h . b
+/ . . . m .
+b . . . . .
+. . . . . .
+`,
+`
+# . . . . .
+. . . . h /
+n . . . . .
+\ . . . . .
+b h b . b .
+. . . . . .
+`,
+`
+. . . . . /
+. . . . . .
+. . . . . .
+# . . . h b
+n . / . b .
+h . b . . .
+`,
+`
+. . . . . .
+. n . h b .
+/ . . . . h
+. # / . . .
+. b . . . .
+. . . b . .
+`,
+`
+. . . . . .
+. . n . . #
+h . . . . b
+. b . . / m
+. . . . b \
+. h . . . .
+`,
+`
+. \ . . . b
+. . . . . h
+. # . b h b
+n . . . . .
+\ . . . . .
+. . . * . .
+`,
+`
+h . . . b .
+. . / b . .
+. . . . . .
+. . . \ . b
+. . . . \ #
+. . h n . .
+`,
+`
+\ . . . b b
+. . b . # h
+. . . / . .
+. . . . . n
+. . h . . .
+. . \ . . .
+`,
+`
+b . . m . /
+/ n . . . .
+# h \ . . .
+. . b . . .
+. . b . . .
+. . . h . .
+`,
+`
+n . / . b .
+. . h . . .
+. / . b . .
+. # . . b .
+. . . \ . .
+. h . . * .
+`,
+`
+h . . b / .
+. . n . . .
+. . . / b .
+b h / . . .
+. . . # . /
+. . . . . .
+`,
+`
+. . . b . .
+. . . . . .
+h . . . . b
+. . h . h b
+. . n . . #
+. . . . . .
+`,
+`
+. b . . . .
+h . . . . .
+. # . . . .
+* . b . b .
+. n h . . .
+. . . . h .
+`,
+`
+. h . . . .
+. b . . . .
+h . . . . .
+. . n * . .
+b . . . # .
+. h . b . .
+`,
+`
+h . . . . #
+. \ . . . n
+. . . . h h
+. . . . . b
+. b . . . .
+b . . . . .
+`,
+`
+. . h . n .
+. . . # . h
+. . . . . .
+. . b . \ h
+. . b b . .
+. . . . . .
+`,
+`
+. . . . . .
+. b . . . h
+h . . . h .
+. . . . . n
+. . . . . \
+. . b b # .
+`,
+`
+b . . h . .
+. . . . . b
+. . . . b .
+\ h . . . #
+. . n . . h
+. . . . . .
+`,
+`
+. . . h . .
+. h . . . b
+. . n . h .
+. . / b . .
+. . . . . .
+. # . b . .
+`,
+`
+# . . h . .
+\ . . . . .
+. . n . . .
+. . . . . .
+. . h b h .
+. b . . b .
+`,
+`
+h . . . b .
+. . . . . .
+. . h . . m
+. . . # . .
+. n . h . b
+. . . / . b
+`,
+`
+. h . . . .
+. . . b # .
+. . n . . .
+. . . * \ .
+h b h . . .
+. . b . . .
+`,
+`
+. . . . . .
+. . . . b b
+h . . # . .
+. . . . h b
+. * h . . \
+. . . n . .
+`,
+`
+. . h . . .
+. . . . . .
+. . . . . .
+h n \ . b .
+. # h . / .
+. . . . b b
+`,
+`
+. \ n . h .
+b . . \ # .
+. h . . . .
+. . h . . .
+. b . b . .
+. . . . . .
+`,
+`
+. . . . . .
+h . . . . #
+. . h \ b .
+. b . . h b
+. . . n . .
+. . . . . \
+`,
+`
+. . \ . n .
+. . h . . /
+b . # . . .
+. b b . h .
+. * . . . .
+h . . . . .
+`,
+`
+. . . . # .
+. . . / h .
+. * . . . .
+n . h . . b
+\ . h . b .
+. b . . . .
+`,
+`
+h . / . * .
+. . . . n .
+b . m . . h
+. . . . h .
+b . . . . .
+. # b . \ .
+`,
+`
+. . . h . .
+. . . b . .
+b . . . . h
+# . . . . n
+. . h . . .
+. b . h . .
+`,
+`
+. . . b . .
+. h * b # .
+. . . . . .
+. . . h . b
+. . . . . h
+h . n . . .
+`,
+`
+. . . . . .
+. h n . . /
+h b . . . .
+. . . . . b
+. . # h h .
+. . b . . .
+`,
+`
+b * . . h .
+. . . . . b
+. . b # . m
+h . . . h .
+n . . . . .
+h . . / . .
+`,
+`
+. . b . . .
+\ . . . . #
+. . . b . *
+. . \ . . .
+. . n . # b
+. . . . . \
+`,
+`
+. b # . . .
+b . . . . .
+. b # . . .
+. . n . . .
+h / . . . .
+. . . . . .
+`,
+`
+. . . . . .
+. # # n * .
+b . . . h .
+. b b . . .
+. . . . . .
+. . . . \ .
+`,
+`
+. . . . . .
+. . . . . .
+. . . . . .
+. b \ . * #
+b . . h . .
+. b # . n .
+`,
+`
+. . . # . .
+. n . # b .
+. / . . . .
+. * . b . .
+. . . . . b
+h . . . . .
+`,
+`
+. . . . # .
+. . . # n .
+. b . . . .
+. / . . h .
+. . . . . .
+b b / . . .
+`,
+`
+h b b . . /
+. # . . / .
+. . # . . .
+. . b . . .
+. n . . . .
+. . . . . .
+`,
+`
+. . . . . .
+. . . b . .
+. . b . . .
+. h \ . . .
+# n . \ b .
+. . . . . #
+`,
+`
+. . . . . .
+. . . . . .
+\ b b . . .
+. / # b . h
+. . n # . .
+. . . . . .
+`,
+`
+b . . . b .
+. . . / . #
+. . . . . .
+/ . . . h .
+. . . # . .
+n \ . . . b
+`,
+`
+. . * . . .
+. . . h . .
+. . . . n .
+. h . b # .
+b # . . . b
+. . . . . .
+`,
+`
+. . . . . .
+. n h . . #
+/ # . h b b
+. . . b . .
+. . . . . .
+. . . . . .
+`,
+`
+h . . . . .
+. . . . . .
+b . . h b b
+. n . . \ .
+. # . . . .
+. . . . # .
+`,
+`
+. b h n . .
+b h . . . .
+\ . . # . .
+. . # . . .
+. . . . . *
+. b . . . .
+`,
+`
+. # n # . .
+b . . . b .
+. . . . . .
+. h \ . . .
+b . . . . h
+. . . * . .
+`,
+`
+. # . n . h
+. . # . . .
+. . . * . .
+. b b h . .
+. . . b . .
+. . . \ . .
+`,
+`
+. . . \ . n
+b . # . . #
+h . . . . .
+b . . h . .
+. . . b . .
+. * . . . .
+`,
+`
+. . . # . .
+. . . / . b
+. . h . b .
+. n . . # .
+. . . h . b
+. . . * . .
+`,
+`
+b . . . b .
+. . / h . .
+. . . . . .
+/ . n . # .
+. . . # . .
+. h . . . b
+`,
+`
+. b . . . .
+. b . . h \
+. . . . * .
+. b . . . .
+. . h \ . #
+. . # . . n
+`,
+`
+. . . h . .
+. . b . \ b
+. \ . # . .
+h n # . . .
+. . . . . .
+\ . . . . b
+`,
+];
+
+const PUZZLE_HINTS = [
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 3, dir: 'up'},
+    {ballId: 3, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 3, dir: 'left'},
+    {ballId: 3, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+  ],
+  [
+    {ballId: 2, dir: 'down'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+  ],
+  [
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'left'},
+  ],
+  [
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'left'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 0, dir: 'up'},
+  ],
+  [
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'right'},
+    {ballId: 0, dir: 'down'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'up'},
+    {ballId: 1, dir: 'right'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 2, dir: 'right'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'down'},
+    {ballId: 2, dir: 'right'},
+  ],
+  [
+    {ballId: 0, dir: 'right'},
+    {ballId: 1, dir: 'down'},
+    {ballId: 1, dir: 'left'},
+    {ballId: 2, dir: 'up'},
+    {ballId: 0, dir: 'left'},
+    {ballId: 2, dir: 'down'},
+  ],
+];
+
+function parsePuzzle(text) {
+  const rows = text.trim().split('\n').map(line => line.trim().split(/\s+/));
+  gs.balls = []; gs.nets = []; gs.obstacles = []; gs.bombs = [];
+  gs.blackholes = []; gs.muds = []; gs.mirrors = []; gs.waters = [];
+  gs.stuckInMud = false; gs.animating = false;
+  rows.forEach((cols, row) => {
+    cols.forEach((sym, col) => {
+      if (sym === '#') gs.obstacles.push({col, row});
+      if (sym === 'n') gs.nets.push({col, row});
+      if (sym === 'b') gs.balls.push({col, row, quat:[0,0,0,1], visible:true, scored:false, id: gs.balls.length});
+      if (sym === '/') gs.mirrors.push({col, row, type:'fwd'});
+      if (sym === '\\') gs.mirrors.push({col, row, type:'bwd'});
+      if (sym === 'w') gs.waters.push({col, row});
+      if (sym === 'm') gs.muds.push({col, row});
+      if (sym === 'h') gs.blackholes.push({col, row});
+      if (sym === '*') gs.bombs.push({col, row});
+    });
+  });
+  gs.activeBall = 0;
+  gs.hasInteracted = false;
+  gs.puzzleMode = true;
+}
+
+function loadPuzzle() {
+  hintActive = false; hintStep = 0;
+  moveHistory = [];
+  boardDiverged = false;
+  const rb = document.getElementById('rewind-btn');
+  if (rb) { rb.style.opacity='0.3'; rb.style.pointerEvents='none'; }
+  const idx = (gs.round - 1) % PUZZLES.length;
+  parsePuzzle(PUZZLES[idx]);
+}
+
+function setupRound(round) {
+  if (gs.puzzleMode) { loadPuzzle(); gs.hasInteracted = false; draw(); if (gs.bombs.length>0||gs.blackholes.length>0) startPulse(); else stopPulse(); return; }
+  // Random mode (unused while puzzle is active)
+  gs.balls = [{ col: Math.floor(Math.random()*COLS), row: Math.floor(ROWS*0.5+Math.random()*ROWS*0.4), quat:[0,0,0,1], visible:true, scored:false, id:0 }];
+  gs.activeBall = 0;
+  const netWidth = round >= 3 ? 1 : 2;
+  const netCol = Math.floor(Math.random()*(COLS-netWidth));
+  gs.nets = [];
+  for (let i=0;i<netWidth;i++) gs.nets.push({col:netCol+i, row:0});
+  gs.obstacles = []; gs.bombs = []; gs.blackholes = []; gs.muds = []; gs.mirrors = []; gs.waters = [];
+  gs.stuckInMud = false;
+  const anyAt = (c,r) => obstacleAt(c,r)||bombAt(c,r)||blackholeAt(c,r)||mudAt(c,r)||mirrorAt(c,r);
+  placeItems(gs.obstacles, round+1, (c,r) => !anyAt(c,r));
+  placeItems(gs.bombs, round, (c,r) => !anyAt(c,r));
+  placeItems(gs.blackholes, Math.floor((round+1)/2), (c,r) => !anyAt(c,r));
+  placeItems(gs.muds, round, (c,r) => !anyAt(c,r));
+  placeItems(gs.mirrors, round+1, (c,r) => !anyAt(c,r), true);
+  draw();
+  if (gs.bombs.length>0||gs.blackholes.length>0) startPulse(); else stopPulse();
+}
+
+function placeItems(arr, count, valid, isMirror) {
+  let attempts = 0;
+  while (arr.length < count && attempts++ < 200) {
+    const c = Math.floor(Math.random()*COLS);
+    const r = Math.floor(1 + Math.random()*(ROWS-3));
+    if (gs.balls.some(b=>b.col===c&&b.row===r)) continue;
+    if (inNet(c,r)) continue;
+    if (!valid(c,r)) continue;
+    const item = { col:c, row:r };
+    if (isMirror) item.type = Math.random() < 0.5 ? 'fwd' : 'bwd';
+    arr.push(item);
+  }
+}
+
+
+
+// ── Hint arrow system ─────────────────────────────────────────────────────
+// Each step: {ballIdx, dir} — ballIdx references gs.balls[], dir is the swipe direction
+
+
+function drawHintArrow(now) {
+  if (!hintActive) return;
+  const puzzleIdx = (gs.round - 1) % PUZZLE_HINTS.length;
+  const steps = PUZZLE_HINTS[puzzleIdx];
+  if (!steps || hintStep >= steps.length) return;
+
+  const { ballId, dir } = steps[hintStep];
+  const b = gs.balls.find(b => b.id === ballId && !b.scored && b.visible);
+  if (!b) return; // ball gone or scored — hint no longer valid
+
+  const cx = b.col * CELL + CELL / 2;
+  const cy = b.row * CELL + CELL / 2;
+  const R  = CELL * 0.44;
+
+  // Pulse phase for animation
+  const t = now !== undefined ? now : performance.now();
+  const pulse = 0.5 + 0.5 * Math.sin(t * 0.004);
+  const offset = R + CELL * (0.18 + 0.08 * pulse); // bouncing offset
+
+  // Arrow tip position (outside ball in swipe direction)
+  const DX = { right: 1, left: -1, up: 0, down: 0 };
+  const DY = { right: 0, left:  0, up:-1, down: 1 };
+  const tx = cx + DX[dir] * offset;
+  const ty = cy + DY[dir] * offset;
+
+  // Arrow shaft base (closer to ball)
+  const shaftLen = CELL * 0.28;
+  const bx = tx - DX[dir] * shaftLen;
+  const by = ty - DY[dir] * shaftLen;
+
+  const alpha = 0.55 + 0.35 * pulse;
+  const headSize = CELL * 0.16;
+
+  ctx.save();
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur  = 12;
+  ctx.strokeStyle = `rgba(0,229,255,${alpha})`;
+  ctx.fillStyle   = `rgba(0,229,255,${alpha})`;
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+
+  // Shaft
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+
+  // Arrowhead
+  ctx.beginPath();
+  ctx.translate(tx, ty);
+  ctx.rotate(Math.atan2(DY[dir], DX[dir]));
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-headSize, -headSize * 0.55);
+  ctx.lineTo(-headSize, headSize * 0.55);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+
+  // Glow ring on hinted ball to distinguish from active ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(0,229,255,${0.3 + 0.3 * pulse})`;
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+document.getElementById('hint-btn').addEventListener('click', () => {
+  const puzzleIdx = (gs.round - 1) % PUZZLE_HINTS.length;
+  const steps = PUZZLE_HINTS[puzzleIdx];
+  if (!steps || steps.length === 0) return;
+
+  if (boardDiverged) {
+    // Board state diverged — hint no longer valid
+    const toast = document.getElementById('hint-toast');
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('show'), 2800);
+    return;
+  }
+  if (!hintActive) {
+    // Show current step (don't advance — user must swipe to progress)
+    if (hintStep >= steps.length) hintStep = 0;
+    hintActive = true;
+  }
+  // Pressing hint again while arrow showing does nothing — must swipe
+  if (!gs.animating) draw();
+  if (!pulseRAF) startPulse();
+});
+
+
+document.getElementById('rewind-btn').addEventListener('click', () => {
+  if (moveHistory.length === 0 || gs.animating) return;
+  const snap = moveHistory.pop();
+
+  const snapBall = snap.balls[snap.activeBall];
+  const curBall = gs.balls.find(b => b.id === snapBall.id) || gs.balls[gs.activeBall];
+  const curPos = { col: curBall ? curBall.col : snapBall.col, row: curBall ? curBall.row : snapBall.row };
+
+  // Make ball visible (handles death/hole cases)
+  if (curBall) { curBall.visible = true; curBall.scored = false; }
+
+  // Restore world (bombs/holes reappear), keep ball at current pos
+  gs.balls = snap.balls.map(b =>
+    b.id === snapBall.id ? {...b, col: curPos.col, row: curPos.row, visible:true, scored:false} : {...b}
+  );
+  gs.activeBall = snap.activeBall;
+  gs.obstacles = snap.obstacles; gs.bombs = snap.bombs; gs.blackholes = snap.blackholes;
+  gs.muds = snap.muds; gs.mirrors = snap.mirrors; gs.stuckInMud = snap.stuckInMud;
+  hintStep = snap.hintStep; hintActive = snap.hintActive;
+
+  // Build reverse segments: reverse order, swap from/to, keep dir for axis
+  const fwdSegs = snap._segments || [];
+  const revSegs = fwdSegs.length > 0
+    ? [...fwdSegs].reverse().map(s => ({ fromC:s.toC, fromR:s.toR, toC:s.fromC, toR:s.fromR, dir:s.dir }))
+    : [{ fromC:curPos.col, fromR:curPos.row, toC:snapBall.col, toR:snapBall.row, dir:snap._dir||'right' }];
+
+  let currentQ = gs.balls[gs.activeBall]?.quat?.slice() || [0,0,0,1];
+  const finalQ = snapBall.quat.slice();
+  gs.animating = true;
+
+  function animateRevSeg(idx) {
+    if (idx >= revSegs.length) {
+      const b = gs.balls[gs.activeBall];
+      if (b) { b.col = snapBall.col; b.row = snapBall.row; b.quat = finalQ; }
+      gs.animating = false;
+      if (moveHistory.length === 0) {
+        document.getElementById('rewind-btn').style.opacity = '0.3';
+        document.getElementById('rewind-btn').style.pointerEvents = 'none';
+        boardDiverged = false;
+      }
+      draw();
+      if (gs.bombs.length > 0 || gs.blackholes.length > 0) startPulse(); else stopPulse();
+      return;
+    }
+    const seg = revSegs[idx];
+    const {fromC, fromR, toC, toR, dir} = seg;
+    const distCells = Math.max(1, Math.abs(toC-fromC) + Math.abs(toR-fromR));
+    const ballR = CELL * 0.41;
+    const distPx = distCells * CELL;
+    const msPer = Math.min(225, 100 + 125 / distCells);
+    const duration = Math.max(300, distCells * msPer);
+    const totalAngle = distPx / ballR * SPIN_MULT;
+    const [fax, fay, faz] = SPIN_AXES[dir] || SPIN_AXES.right;
+    const rax = -fax, ray = -fay, raz = -faz;
+    const segStartQ = currentQ.slice();
+    const start = performance.now();
+
+    function step(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+      const cx = fromC + (toC-fromC)*ease;
+      const cr = fromR + (toR-fromR)*ease;
+      const frameQ = qNorm(qMul(qAxis(rax, ray, raz, ease*totalAngle), segStartQ));
+      const b = gs.balls[gs.activeBall];
+      if (b) { b.col = cx; b.row = cr; b.quat = frameQ; }
+      currentQ = frameQ;
+      draw(undefined, undefined, undefined, now);
+      if (t < 1) requestAnimationFrame(step);
+      else animateRevSeg(idx + 1);
+    }
+    requestAnimationFrame(step);
+  }
+
+  animateRevSeg(0);
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  const o = document.getElementById('start-overlay');
+  o.style.opacity='0'; o.style.pointerEvents='none';
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('game-btns').style.display='flex';
+  // Pre-warm AudioContext from this user gesture so all future sounds work immediately
+  try { const ac = getAC(); ac.resume(); } catch(e) {}
+  gs.puzzleMode = true;
+  setupRound(1);
+});
+document.getElementById('next-btn').addEventListener('click', nextRound);
+document.getElementById('retry-btn').addEventListener('click', resetGame);
+
+resize();
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
