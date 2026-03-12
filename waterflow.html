@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#020d18">
+<title>WATERFLOW</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap"></noscript>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+html,body{background:#020d18;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:100vh;font-family:'Share Tech Mono',monospace;
+  color:#c0a0e0;user-select:none;overflow:hidden;touch-action:none;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;}
+
+.wrap{display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px;position:relative;z-index:1}
+
+.title{font-family:'Orbitron',sans-serif;font-size:clamp(18px,5vw,32px);
+  background:linear-gradient(90deg,#ff4fd8,#a259ff,#4fc3f7);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:4px;line-height:1;
+  filter:drop-shadow(0 0 18px rgba(162,89,255,0.55)) drop-shadow(0 0 6px rgba(79,195,247,0.3))}
+
+.boards{display:flex;gap:10px;align-items:flex-start}
+.board-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+.board-label{font-size:12px;letter-spacing:6px;color:#a080c8;opacity:1;font-weight:bold;
+  text-shadow:0 0 10px rgba(162,89,255,0.5)}
+
+.btn{
+  background:linear-gradient(160deg,#160040,#0a0025);
+  border:1px solid rgba(162,89,255,0.35);
+  color:#b090d8;
+  padding:5px 12px;
+  font-family:'Share Tech Mono',monospace;font-size:13px;
+  cursor:pointer;border-radius:10px;letter-spacing:2px;
+  transition:all .2s;font-weight:bold;
+  box-shadow:0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  position:relative;overflow:hidden}
+.btn::before{content:'';position:absolute;inset:0;border-radius:10px;
+  background:linear-gradient(160deg,rgba(162,89,255,0.08),transparent);
+  opacity:0;transition:opacity .2s}
+.btn:hover{border-color:rgba(162,89,255,0.7);color:#e0c8ff;
+  box-shadow:0 2px 20px rgba(162,89,255,0.25), inset 0 1px 0 rgba(255,255,255,0.1)}
+.btn:hover::before{opacity:1}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.25;cursor:default}
+.btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+
+#msg{font-size:12px;letter-spacing:5px;color:#8060b0;min-height:16px;text-align:center;
+  font-family:'Share Tech Mono',monospace}
+
+canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
+  box-shadow:0 8px 48px rgba(0,0,0,0.8),
+             0 0 0 1px rgba(162,89,255,0.2),
+             0 0 0 2px rgba(10,0,20,1),
+             0 0 30px rgba(162,89,255,0.08)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">WATERFLOW</div>
+  <div class="board-wrap">
+    <div class="board-label">TARGET</div>
+    <canvas id="cTarget"></canvas>
+  </div>
+  <div class="board-wrap">
+    <div class="board-label">YOURS</div>
+    <canvas id="cPlay"></canvas>
+  </div>
+  <div id="msg">LEVEL 1</div>
+  <div class="btns">
+    <button class="btn" id="solveBtn">SOLVE</button>
+    <button class="btn" id="undoBtn">UNDO</button>
+    <button class="btn" id="resetBtn">RESET</button>
+    <button class="btn" id="nextBtn" disabled>NEXT</button>
+  </div>
+</div>
+
+<canvas id="confetti" style="position:fixed;top:0;left:0;pointer-events:none;z-index:10"></canvas>
+<script>
+const ROWS=6,COLS=6,DPR=Math.min(window.devicePixelRatio||1,2);
+// Budget: title~36 + 2 labels~22 + msg~16 + buttons~38 + gaps~20 + padding~8 = ~140px
+const _safeTop=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')||'0')||0;
+const _safeBot=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab')||'0')||0;
+const _uiHeight=190;
+const _availH=window.innerHeight-_safeTop-_safeBot;
+const _byHeight=Math.floor((_availH-_uiHeight)/(2*ROWS));
+const _byWidth=Math.floor((window.innerWidth-20)/COLS);
+const CELL=Math.min(_byHeight,_byWidth,64);
+const W=COLS*CELL,H=ROWS*CELL;
+const HUES=[210,30,160,260,340,80];
+
+const cT=document.getElementById('cTarget'), tctx=cT.getContext('2d');
+const cP=document.getElementById('cPlay'),   ctx=cP.getContext('2d');
+for(const cv of [cT,cP]){
+  cv.width=W*DPR; cv.height=H*DPR;
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+}
+tctx.setTransform(DPR,0,0,DPR,0,0);
+ctx.setTransform(DPR,0,0,DPR,0,0);
+
+// ── Levels ────────────────────────────────────────────────────────────────────
+const LEVELS=[
+  {rocks:[{y:1,col:2},{y:2,col:0},{y:4,col:1},{y:5,col:1}],toRemove:['5,1','4,1','1,2'],toDraw:[{y:4,c0:3,c1:5},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:1},{y:2,col:2},{y:3,col:1},{y:5,col:0}],toRemove:['2,2','3,1','5,0'],toDraw:[{y:3,c0:1,c1:5},{y:4,c0:5,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:4},{y:5,col:2}],toRemove:['5,2','1,3','2,2'],toDraw:[{y:1,c0:1,c1:3},{y:2,c0:0,c1:2}]},
+  {rocks:[{y:1,col:1},{y:2,col:1},{y:4,col:3},{y:5,col:4}],toRemove:['1,1','2,1','4,3'],toDraw:[{y:1,c0:3,c1:4},{y:2,c0:5,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:3,col:4},{y:4,col:3}],toRemove:['1,3','2,0','4,3'],toDraw:[{y:1,c0:2,c1:3},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:4,col:1},{y:5,col:3}],toRemove:['1,3','4,1','2,3'],toDraw:[{y:1,c0:0,c1:4},{y:2,c0:3,c1:5}]},
+  {rocks:[{y:1,col:2},{y:3,col:0},{y:4,col:4},{y:5,col:3}],toRemove:['4,4','3,0','1,2'],toDraw:[{y:4,c0:1,c1:4},{y:3,c0:0,c1:3}]},
+  {rocks:[{y:2,col:1},{y:3,col:0},{y:4,col:4},{y:5,col:2}],toRemove:['5,2','3,0','2,1'],toDraw:[{y:3,c0:2,c1:6},{y:2,c0:2,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:1},{y:4,col:0},{y:5,col:1}],toRemove:['2,2','1,3','4,0'],toDraw:[{y:4,c0:1,c1:4},{y:2,c0:1,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:0},{y:3,col:3},{y:4,col:4},{y:5,col:1}],toRemove:['5,1','3,3','2,0'],toDraw:[{y:5,c0:2,c1:5},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:0},{y:2,col:3},{y:3,col:4},{y:4,col:2},{y:5,col:3}],toRemove:['1,0','5,3','4,2'],toDraw:[{y:5,c0:2,c1:6},{y:1,c0:0,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:3},{y:4,col:1},{y:5,col:0}],toRemove:['3,3','2,1','5,0'],toDraw:[{y:2,c0:5,c1:6},{y:5,c0:1,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:1},{y:3,col:2},{y:4,col:3},{y:5,col:4}],toRemove:['2,1','3,2','4,3'],toDraw:[{y:2,c0:0,c1:2},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:0},{y:2,col:2},{y:3,col:4},{y:4,col:4},{y:5,col:0}],toRemove:['1,0','3,4','4,4'],toDraw:[{y:4,c0:0,c1:3},{y:3,c0:2,c1:5}]},
+  {rocks:[{y:1,col:0},{y:2,col:1},{y:3,col:1},{y:4,col:2},{y:5,col:1}],toRemove:['5,1','2,1','4,2'],toDraw:[{y:5,c0:0,c1:4},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:1},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,1','2,0'],toDraw:[{y:2,c0:0,c1:3},{y:5,c0:2,c1:5}]},
+  {rocks:[{y:2,col:0},{y:3,col:3},{y:4,col:1},{y:5,col:2}],toRemove:['5,2','4,1','2,0'],toDraw:[{y:4,c0:2,c1:4},{y:2,c0:3,c1:4},{y:1,c0:0,c1:2}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:5,col:0}],toRemove:['2,1','5,0','3,4'],toDraw:[{y:3,c0:0,c1:2},{y:5,c0:4,c1:6},{y:4,c0:2,c1:5}]},
+  {rocks:[{y:1,col:4},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','4,0','1,4'],toDraw:[{y:2,c0:1,c1:3},{y:4,c0:3,c1:5},{y:1,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:4},{y:3,col:0},{y:5,col:3}],toRemove:['2,4','5,3','3,0'],toDraw:[{y:2,c0:1,c1:5},{y:5,c0:3,c1:5},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,3','2,0'],toDraw:[{y:3,c0:4,c1:6},{y:2,c0:1,c1:2},{y:1,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:3,col:3},{y:4,col:2},{y:5,col:1}],toRemove:['5,1','3,3','4,2'],toDraw:[{y:3,c0:2,c1:4},{y:4,c0:1,c1:2},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:3,col:4},{y:4,col:3},{y:5,col:3}],toRemove:['4,3','3,4','1,2'],toDraw:[{y:1,c0:1,c1:2},{y:4,c0:4,c1:5},{y:3,c0:5,c1:6}]},
+  {rocks:[{y:1,col:0},{y:3,col:0},{y:4,col:4},{y:5,col:1}],toRemove:['5,1','1,0','4,4'],toDraw:[{y:4,c0:5,c1:6},{y:2,c0:1,c1:5},{y:1,c0:4,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:4,col:0},{y:5,col:0}],toRemove:['5,0','2,1','4,0'],toDraw:[{y:4,c0:0,c1:1},{y:5,c0:0,c1:1},{y:2,c0:2,c1:5}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:2},{y:4,col:4},{y:5,col:1}],toRemove:['1,3','3,2','4,4'],toDraw:[{y:4,c0:0,c1:4},{y:3,c0:1,c1:4},{y:1,c0:0,c1:1}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:0},{y:4,col:3},{y:5,col:3}],toRemove:['5,3','1,4','4,3'],toDraw:[{y:4,c0:0,c1:1},{y:1,c0:0,c1:3},{y:5,c0:1,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:3},{y:4,col:0},{y:5,col:4}],toRemove:['1,3','3,3','2,3'],toDraw:[{y:1,c0:1,c1:2},{y:2,c0:2,c1:6},{y:3,c0:0,c1:4}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:4,col:1},{y:5,col:0}],toRemove:['1,3','4,1','2,1'],toDraw:[{y:1,c0:2,c1:3},{y:2,c0:3,c1:4},{y:4,c0:2,c1:5}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:1},{y:4,col:3},{y:5,col:1}],toRemove:['1,3','2,3','4,3'],toDraw:[{y:2,c0:2,c1:3},{y:4,c0:4,c1:6},{y:1,c0:3,c1:6}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:0},{y:4,col:2},{y:5,col:3}],toRemove:['5,3','2,3','4,2'],toDraw:[{y:2,c0:0,c1:1},{y:5,c0:1,c1:3},{y:4,c0:1,c1:3}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:4},{y:4,col:0},{y:5,col:3}],toRemove:['3,4','5,3','1,4'],toDraw:[{y:5,c0:4,c1:6},{y:3,c0:4,c1:5},{y:1,c0:2,c1:5}]},
+  {rocks:[{y:1,col:0},{y:2,col:2},{y:3,col:0},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,0','4,2','2,2'],toDraw:[{y:1,c0:5,c1:6},{y:2,c0:3,c1:4},{y:5,c0:0,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:3},{y:4,col:1},{y:5,col:3}],toRemove:['1,3','5,3','4,1','2,2'],toDraw:[{y:1,c0:3,c1:4},{y:2,c0:0,c1:1},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:1},{y:2,col:4},{y:3,col:0},{y:4,col:1},{y:5,col:0}],toRemove:['2,4','1,1','4,1','3,0'],toDraw:[{y:2,c0:1,c1:5},{y:1,c0:2,c1:6},{y:4,c0:4,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:3},{y:4,col:0},{y:5,col:2}],toRemove:['5,2','3,3','4,0','1,1'],toDraw:[{y:3,c0:1,c1:5},{y:4,c0:5,c1:6},{y:1,c0:1,c1:5}]},
+  {rocks:[{y:1,col:4},{y:2,col:0},{y:3,col:4},{y:4,col:4},{y:5,col:4}],toRemove:['3,4','5,4','1,4','4,4'],toDraw:[{y:5,c0:4,c1:6},{y:1,c0:2,c1:5},{y:4,c0:3,c1:6}]},
+  {rocks:[{y:1,col:4},{y:2,col:4},{y:3,col:4},{y:4,col:4},{y:5,col:2}],toRemove:['2,4','5,2','1,4','3,4'],toDraw:[{y:5,c0:1,c1:5},{y:1,c0:5,c1:6},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:1},{y:4,col:0},{y:5,col:2}],toRemove:['5,2','2,3','4,0','1,2'],toDraw:[{y:1,c0:0,c1:1},{y:4,c0:2,c1:3},{y:2,c0:1,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:3},{y:4,col:2},{y:5,col:2}],toRemove:['3,3','2,0','4,2','1,1'],toDraw:[{y:2,c0:2,c1:6},{y:4,c0:0,c1:3},{y:1,c0:0,c1:2}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:1},{y:4,col:1},{y:5,col:1}],toRemove:['5,1','1,3','3,1','4,1'],toDraw:[{y:4,c0:2,c1:4},{y:3,c0:0,c1:1},{y:1,c0:2,c1:5}]},
+  {rocks:[{y:1,col:4},{y:2,col:4},{y:3,col:3},{y:4,col:1},{y:5,col:0}],toRemove:['2,4','3,3','5,0','1,4'],toDraw:[{y:2,c0:0,c1:4},{y:1,c0:2,c1:5},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:0},{y:2,col:3},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','1,0','2,3','3,4'],toDraw:[{y:2,c0:2,c1:6},{y:3,c0:0,c1:2},{y:5,c0:4,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:2},{y:3,col:3},{y:4,col:3},{y:5,col:2}],toRemove:['5,2','3,3','1,1','4,3'],toDraw:[{y:4,c0:1,c1:3},{y:1,c0:3,c1:5},{y:5,c0:1,c1:4}]},
+  {rocks:[{y:1,col:0},{y:2,col:1},{y:3,col:2},{y:4,col:1},{y:5,col:0}],toRemove:['1,0','4,1','2,1','5,0'],toDraw:[{y:2,c0:3,c1:6},{y:5,c0:4,c1:5},{y:1,c0:0,c1:2},{y:4,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:3},{y:4,col:3},{y:5,col:1}],toRemove:['5,1','3,3','2,3','1,2'],toDraw:[{y:1,c0:0,c1:4},{y:3,c0:1,c1:5},{y:5,c0:0,c1:1},{y:2,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:4},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','1,3','2,4','4,0'],toDraw:[{y:1,c0:2,c1:4},{y:2,c0:2,c1:6},{y:4,c0:3,c1:6},{y:5,c0:3,c1:4}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:3,col:3},{y:4,col:2},{y:5,col:3}],toRemove:['4,2','5,3','3,3','2,0'],toDraw:[{y:4,c0:0,c1:1},{y:2,c0:0,c1:2},{y:3,c0:0,c1:2},{y:5,c0:0,c1:4}]},
+  {rocks:[{y:1,col:1},{y:2,col:4},{y:3,col:1},{y:4,col:2},{y:5,col:3}],toRemove:['2,4','1,1','3,1','4,2'],toDraw:[{y:3,c0:3,c1:6},{y:2,c0:2,c1:5},{y:4,c0:5,c1:6},{y:1,c0:0,c1:3}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:4},{y:4,col:1},{y:5,col:0}],toRemove:['4,1','2,3','5,0','3,4'],toDraw:[{y:4,c0:1,c1:4},{y:5,c0:5,c1:6},{y:3,c0:0,c1:3},{y:2,c0:5,c1:6}]},
+];
+
+let gs=null, levelIdx=0, tapHistory=[], levelHueOffset=0;
+let dragState=null;
+
+// ── Core logic ────────────────────────────────────────────────────────────────
+function segRockAt(rocks,y,col){
+  let best=null;
+  for(const r of rocks) if(r.y===y&&r.col<=col&&(!best||r.col>best.col)) best=r;
+  return best;
+}
+
+// Each column is independent: find walls in that column, create bands, assign hue by band start row
+function cellHueMap(rocks, opened, drawn){
+  const hm=[];
+  const activeRocks=rocks.filter(r=>!opened.has(`${r.y},${r.col}`));
+  for(let col=0;col<COLS;col++){
+    hm[col]=[];
+    const walls=new Set();
+    for(let y=1;y<ROWS;y++){
+      if(segRockAt(activeRocks,y,col)) walls.add(y);
+    }
+    for(const d of drawn){
+      if((d.progress??1)<1) continue;
+      if(d._vanishing) continue;
+      if(col>=d.c0&&col<d.c1) walls.add(d.y);
+    }
+    const ys=[0,...[...walls].sort((a,b)=>a-b),ROWS];
+    // Anchor each band's hue to its absolute start row — inserting a rod above
+    // never shifts bands below it
+    const STEP=65;
+    // 60° base spacing guarantees cols never look same; jitter varies per level
+    const jitter=((levelIdx*13*(col+1)*7)%30)-15; // ±15° jitter
+    const colBase=(levelHueOffset+col*60+jitter+360)%360;
+    const bandHues=ys.slice(0,-1).map((y,i)=>
+      i===0 ? colBase : (colBase+y*STEP)%360
+    );
+    for(let row=0;row<ROWS;row++){
+      let bandIdx=0;
+      for(let i=0;i<ys.length-1;i++){
+        if(row>=ys[i]&&row<ys[i+1]){bandIdx=i;break;}
+      }
+      hm[col][row]=bandHues[bandIdx];
+    }
+  }
+  return hm;
+}
+
+function hueMapsMatch(a,b){
+  for(let col=0;col<COLS;col++) for(let row=0;row<ROWS;row++) if(a[col][row]!==b[col][row]) return false;
+  return true;
+}
+
+// ── initLevel ─────────────────────────────────────────────────────────────────
+function initLevel(idx){
+  levelHueOffset = [0,137,74,211,43,178,93,260,21,158,85,230,51,196,112,301,67,204,129,316,38,175,92,247,14,151,88,233,60,197,124,311,45,182,99,276,22,167,84,239,11,156,73,228,55,200,117,304,41,178][idx%50];
+  const L=LEVELS[idx%LEVELS.length];
+  // toDraw is [{y,c0,c1}] — targetDrawn uses exact rod dimensions
+  const targetDrawn=L.toDraw.map(d=>({y:d.y,c0:d.c0,c1:d.c1,progress:1}));
+  gs={
+    rocks:L.rocks.map(r=>({...r})),
+    toRemove:new Set(L.toRemove),
+    toDraw:L.toDraw.map(d=>({...d})),
+    targetDrawn,
+    opened:new Set(),
+    drawn:[],
+    solved:false,
+    autoSolving:false,
+    idx,
+    solveQueue:undefined,
+    _solveGen:0
+  };
+  tapHistory=[];
+  colorCascades.length=0;
+  vanishingRods.length=0;
+  tapGlows.length=0;
+  mergeGlows.length=0;
+  solveGen++;
+  // Init renderedHues from actual game state (no zeros)
+  const initHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  renderedHues=initHm.map(col=>[...col]);
+  lastMatchState=null;
+  document.getElementById('msg').textContent=`LEVEL ${idx+1}`;
+  document.getElementById('nextBtn').disabled=true;
+  document.getElementById('solveBtn').disabled=false;
+  cP.style.boxShadow=`0 4px 40px #00000099,0 0 0 2px #2a0a5a,0 0 0 4px #0a0018`;
+  drawTargetBoard();
+}
+
+function drawTargetBoard(){
+  drawBoard(tctx,gs.rocks,gs.toRemove,gs.targetDrawn,0,false,false,false);
+}
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// Per-tile sparkles: each tile has its own independent twinkle
+const tileSparkles=Array.from({length:COLS},()=>Array.from({length:ROWS},()=>({
+  phase:Math.random()*Math.PI*2,
+  speed:0.15+Math.random()*0.25,   // much slower pulse
+  x:0.25+Math.random()*0.5,
+  y:0.25+Math.random()*0.5,
+  x2:0.2+Math.random()*0.6,
+  y2:0.2+Math.random()*0.6,
+  sz:0.025+Math.random()*0.035,    // smaller
+  sz2:0.015+Math.random()*0.02,    // smaller
+  active:Math.random()<0.35,       // only ~35% of tiles sparkle at all
+})));
+
+function drawTileSparkles(c, now, tx, ty, tw, th, col, row, hue){
+  const sp=tileSparkles[col][row];
+  if(!sp.active) return;
+  const t1=Math.max(0,Math.sin(now*0.001*sp.speed+sp.phase));
+  const t2=Math.max(0,Math.sin(now*0.001*sp.speed*1.3+sp.phase+1.9));
+  c.save();
+  if(t1>0.5){
+    const px=tx+tw*sp.x, py=ty+th*sp.y;
+    const sz=tw*sp.sz*t1;
+    const a=t1*0.6;
+    c.globalAlpha=a;
+    c.shadowColor=`hsla(${hue},100%,90%,${a})`;
+    c.shadowBlur=sz*2;
+    c.fillStyle=`hsla(${hue},60%,98%,1)`;
+    _drawStar(c,px,py,sz);
+  }
+  if(t2>0.6){
+    const px=tx+tw*sp.x2, py=ty+th*sp.y2;
+    const sz=tw*sp.sz2*t2;
+    const a=t2*0.45;
+    c.globalAlpha=a;
+    c.shadowColor=`hsla(${hue},100%,95%,${a})`;
+    c.shadowBlur=sz*2;
+    c.fillStyle='rgba(255,255,255,1)';
+    _drawStar(c,px,py,sz);
+  }
+  c.shadowBlur=0;
+  c.restore();
+}
+
+function _drawStar(c,x,y,sz){
+  c.beginPath();
+  c.moveTo(x,y-sz*2.2);
+  c.lineTo(x+sz*0.35,y-sz*0.35);
+  c.lineTo(x+sz*2.2,y);
+  c.lineTo(x+sz*0.35,y+sz*0.35);
+  c.lineTo(x,y+sz*2.2);
+  c.lineTo(x-sz*0.35,y+sz*0.35);
+  c.lineTo(x-sz*2.2,y);
+  c.lineTo(x-sz*0.35,y-sz*0.35);
+  c.closePath();
+  c.fill();
+}
+
+function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=false, showRods=true, frameNow=0){
+  const GAP=2, R=4, now=frameNow||performance.now();
+  const hm=cellHueMap(rocks,opened,drawn);
+  c.fillStyle='rgb(8,0,20)'; c.fillRect(0,0,W,H);
+
+  // Subtle inner vignette
+  const vig=c.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.75);
+  vig.addColorStop(0,'rgba(0,0,0,0)');
+  vig.addColorStop(1,'rgba(0,0,0,0.35)');
+  c.fillStyle=vig; c.fillRect(0,0,W,H);
+
+  // Background tile grid
+  for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
+    const tx=col*CELL+GAP,ty=row*CELL+GAP,tw=CELL-GAP*2,th=CELL-GAP*2;
+    // Empty tile — subtle glass inset
+    const eg=c.createLinearGradient(tx,ty,tx,ty+th);
+    eg.addColorStop(0,'rgba(255,255,255,0.04)');
+    eg.addColorStop(1,'rgba(0,0,0,0.15)');
+    c.fillStyle=eg; roundRect(c,tx,ty,tw,th,R); c.fill();
+    c.strokeStyle='rgba(255,255,255,0.05)'; c.lineWidth=1;
+    roundRect(c,tx,ty,tw,th,R); c.stroke();
+  }
+
+  // Colored tiles
+  for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
+    const tx=col*CELL+GAP,ty=row*CELL+GAP,tw=CELL-GAP*2,th=CELL-GAP*2;
+    let hue=hm[col][row];
+    let cascT=1, cascFromHue=hue; // cascT=1 means fully new color
+
+    if(showCascades){
+      const casc=colorCascades.find(cc=>cc.col===col&&cc.row===row);
+      if(casc){
+        const el=casc.startTime===0 ? -1 : now-casc.startTime;
+        if(el<0){
+          cascT=0; cascFromHue=casc.fromHue; hue=casc.fromHue;
+        } else {
+          cascT=Math.min(1,el/CASCADE_FADE);
+          cascFromHue=casc.fromHue;
+          hue=casc.toHue;
+          if(cascT>=1) colorCascades.splice(colorCascades.indexOf(casc),1);
+        }
+      }
+      renderedHues[col][row]=cascT>=1 ? hue : cascFromHue;
+    }
+
+    // Draw fromHue tile first, then toHue tile on top with alpha=cascT
+    // This gives a clean opacity crossfade — no intermediate hues
+    const drawTile=(h,alpha)=>{
+      c.save(); c.globalAlpha=alpha;
+
+      // Outer colored bloom
+      const cx=tx+tw/2,cy=ty+th/2,br=Math.max(0.01,CELL*0.9);
+      const bl=c.createRadialGradient(cx,cy,0,cx,cy,br);
+      bl.addColorStop(0,`hsla(${h},100%,60%,0.35)`);
+      bl.addColorStop(0.5,`hsla(${h},90%,50%,0.1)`);
+      bl.addColorStop(1,`hsla(${h},90%,55%,0)`);
+      c.fillStyle=bl; c.fillRect(tx-br*0.3,ty-br*0.3,tw+br*0.6,th+br*0.6);
+
+      // Base tile body — rich gradient with more depth
+      const g=c.createLinearGradient(tx,ty,tx,ty+th);
+      g.addColorStop(0,   `hsla(${h},75%,52%,0.88)`);
+      g.addColorStop(0.35,`hsla(${h},78%,40%,0.82)`);
+      g.addColorStop(0.7, `hsla(${h},80%,28%,0.78)`);
+      g.addColorStop(1,   `hsla(${h},85%,18%,0.75)`);
+      c.fillStyle=g; roundRect(c,tx,ty,tw,th,R); c.fill();
+
+      // Inner bottom shadow for depth
+      const bs=c.createLinearGradient(tx,ty+th*0.6,tx,ty+th);
+      bs.addColorStop(0,'rgba(0,0,0,0)');
+      bs.addColorStop(1,'rgba(0,0,0,0.4)');
+      c.fillStyle=bs; roundRect(c,tx,ty,tw,th,R); c.fill();
+
+      // Top highlight shimmer
+      const sh=c.createLinearGradient(tx,ty,tx,ty+th*0.5);
+      sh.addColorStop(0,'rgba(255,255,255,0.55)');
+      sh.addColorStop(0.3,'rgba(255,255,255,0.18)');
+      sh.addColorStop(1,'rgba(255,255,255,0)');
+      c.fillStyle=sh; roundRect(c,tx,ty,tw,th*0.55,R); c.fill();
+
+      // Colored rim glow
+      c.strokeStyle=`hsla(${h},85%,75%,0.5)`; c.lineWidth=1;
+      roundRect(c,tx,ty,tw,th,R); c.stroke();
+
+      c.restore();
+    };
+
+    if(cascT<1 && cascT>0){
+      drawTile(cascFromHue, 1);       // old color fully opaque underneath
+      drawTile(hue, cascT);           // new color fades in on top
+    } else {
+      drawTile(hue, 1);
+    }
+
+    // Per-tile sparkle twinkle
+    if(showSparkles) drawTileSparkles(c,now,tx,ty,tw,th,col,row,hue);
+  }
+
+  if(false){ // legacy sparkle block removed
+  }
+
+  if(!showRods) return;
+
+  // Gold rods (removable)
+  const activeRocks=rocks.filter(r=>!opened.has(`${r.y},${r.col}`));
+  c.save();
+  c.lineCap='round';
+  for(let y=1;y<ROWS;y++){
+    const segs=activeRocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
+    if(!segs.length) continue;
+    for(let i=0;i<segs.length;i++){
+      const seg=segs[i];
+      const x0=seg.col*CELL+4, x1=i+1<segs.length?(segs[i+1].col)*CELL-4:COLS*CELL-4;
+      const py=y*CELL;
+      const pulse=0.5+0.5*Math.sin(T*2.5+y*0.9);
+      // Wide soft aura
+      c.strokeStyle=`rgba(255,140,0,${0.12+0.08*pulse})`; c.lineWidth=14;
+      c.shadowBlur=0;
+      c.beginPath(); c.moveTo(x0,py); c.lineTo(x1,py); c.stroke();
+      // Mid glow
+      c.strokeStyle=`rgba(255,190,30,${0.5+0.15*pulse})`; c.lineWidth=7;
+      c.shadowColor='rgba(255,160,0,0.9)'; c.shadowBlur=10;
+      c.beginPath(); c.moveTo(x0,py); c.lineTo(x1,py); c.stroke();
+      // Bright core
+      c.strokeStyle='rgba(255,235,120,0.98)'; c.lineWidth=2.5;
+      c.shadowColor='rgba(255,220,80,1)'; c.shadowBlur=6;
+      c.beginPath(); c.moveTo(x0,py); c.lineTo(x1,py); c.stroke();
+      c.shadowBlur=0;
+    }
+  }
+  c.restore();
+
+  // Cyan drawn rods (progress sweep)
+  c.save();
+  c.lineCap='round';
+  for(const d of drawn){
+    const prog=d.progress??1;
+    if(prog<=0) continue;
+    if(d._vanishing) continue;
+    const py=d.y*CELL;
+    const x0=d.c0*CELL+4, x1=d.c1*CELL-4;
+    const sweepX=x0+(x1-x0)*prog;
+    const pulse=0.5+0.5*Math.sin(T*3.5+d.y*0.6);
+    // Wide soft aura
+    c.strokeStyle=`rgba(0,180,255,${0.1+0.06*pulse})`; c.lineWidth=14;
+    c.shadowBlur=0;
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
+    // Mid glow
+    c.strokeStyle=`rgba(0,220,255,${0.55+0.15*pulse})`; c.lineWidth=6;
+    c.shadowColor='rgba(0,200,255,0.9)'; c.shadowBlur=10;
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
+    // Bright core
+    c.strokeStyle='rgba(180,245,255,0.98)'; c.lineWidth=2;
+    c.shadowColor='rgba(100,240,255,1)'; c.shadowBlur=5;
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
+    c.shadowBlur=0;
+  }
+  c.restore();
+
+  // Vanishing rods (gold shrink)
+  c.save();
+  c.lineCap='round';
+  for(const v of vanishingRods){
+    const t=Math.min(1,(performance.now()-v.start)/v.dur);
+    const cx=(v.px0+v.px1)/2;
+    const half=(v.px1-v.px0)/2*(1-t);
+    const a=1-t;
+    if(half<0.5) continue;
+    // Wide aura
+    c.strokeStyle=`rgba(255,140,0,${a*0.12})`; c.lineWidth=14;
+    c.shadowBlur=0;
+    c.beginPath(); c.moveTo(cx-half,v.py); c.lineTo(cx+half,v.py); c.stroke();
+    // Mid glow
+    c.strokeStyle=`rgba(255,200,40,${a*0.85})`; c.lineWidth=6;
+    c.shadowColor=`rgba(255,170,0,${a})`; c.shadowBlur=10*a;
+    c.beginPath(); c.moveTo(cx-half,v.py); c.lineTo(cx+half,v.py); c.stroke();
+    // Core
+    c.strokeStyle=`rgba(255,240,130,${a*0.95})`; c.lineWidth=2.5;
+    c.shadowBlur=5*a;
+    c.beginPath(); c.moveTo(cx-half,v.py); c.lineTo(cx+half,v.py); c.stroke();
+    c.shadowBlur=0;
+  }
+  c.restore();
+}
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+let audioCtx=null;
+function getAudio(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playVanish(){
+  try{
+    const ac=getAudio();
+    const now=ac.currentTime;
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(520,now);
+    osc.frequency.exponentialRampToValueAtTime(180,now+0.35);
+    gain.gain.setValueAtTime(0.18,now);
+    gain.gain.exponentialRampToValueAtTime(0.001,now+0.35);
+    osc.start(now); osc.stop(now+0.35);
+    const buf=ac.createBuffer(1,ac.sampleRate*0.15,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,2);
+    const src=ac.createBufferSource();
+    const ng=ac.createGain();
+    const filt=ac.createBiquadFilter();
+    filt.type='bandpass'; filt.frequency.value=800; filt.Q.value=0.8;
+    src.buffer=buf; src.connect(filt); filt.connect(ng); ng.connect(ac.destination);
+    ng.gain.setValueAtTime(0.12,now); ng.gain.exponentialRampToValueAtTime(0.001,now+0.15);
+    src.start(now);
+  }catch(e){}
+}
+
+function playCascade(dir, rowIndex){}
+
+function playDraw(){
+  try{
+    const ac=getAudio();
+    const now=ac.currentTime;
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(280,now);
+    osc.frequency.exponentialRampToValueAtTime(560,now+0.3);
+    gain.gain.setValueAtTime(0.12,now);
+    gain.gain.exponentialRampToValueAtTime(0.001,now+0.35);
+    osc.start(now); osc.stop(now+0.35);
+  }catch(e){}
+}
+
+function playWin(){
+  try{
+    const ac=getAudio();
+    const now=ac.currentTime;
+    [0,0.12,0.24,0.4].forEach((t,i)=>{
+      const freqs=[440,554,659,880];
+      const osc=ac.createOscillator();
+      const gain=ac.createGain();
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.type='sine';
+      osc.frequency.value=freqs[i];
+      gain.gain.setValueAtTime(0.15,now+t);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+t+0.4);
+      osc.start(now+t); osc.stop(now+t+0.4);
+    });
+  }catch(e){}
+}
+
+// ── Render loop ───────────────────────────────────────────────────────────────
+let T=0, lastT=0, solveGen=0;
+const tapGlows=[], mergeGlows=[], colorCascades=[], vanishingRods=[];
+let renderedHues=[];
+const CASCADE_FADE=312; // 240 * 1.3
+let lastMatchState=null;
+
+function render(now=0){
+  requestAnimationFrame(render);
+  const dt=Math.min(now-lastT,50);
+  T+=dt*.001; lastT=now;
+  if(!gs) return;
+
+  // 1. Update drawn rod progress
+  for(const d of gs.drawn){
+    if((d.progress??1)<1){
+      d.progress=Math.min(1,(d.progress??0)+dt/576);
+      if(d.progress>=1){
+        d.progress=1;
+        if(!d._cascadeFired){
+          d._cascadeFired=true;
+          if(d._cascadeCb) d._cascadeCb();
+        }
+      }
+    }
+  }
+
+  // 2. Cleanup vanishing rods
+  for(let i=vanishingRods.length-1;i>=0;i--){
+    const v=vanishingRods[i];
+    if(performance.now()-v.start>=v.dur){
+      vanishingRods.splice(i,1);
+      if(v.onComplete) v.onComplete();
+    }
+  }
+
+  // 3. Draw
+  drawBoard(tctx,gs.rocks,gs.toRemove,gs.targetDrawn,T*0.4,true,false,false,now);
+  drawBoard(ctx,gs.rocks,gs.opened,gs.drawn,T,true,true,true,now);
+
+  // Tap glows
+  ctx.save();
+  for(let i=tapGlows.length-1;i>=0;i--){
+    const g=tapGlows[i],age=Math.max(0,(now-g.t)/350);
+    if(age>1){tapGlows.splice(i,1);continue;}
+    const a=.45*(1-age),r=Math.max(0.01,CELL*(.2+.5*age));
+    const rg=ctx.createRadialGradient(g.px,g.py,0,g.px,g.py,r);
+    rg.addColorStop(0,`rgba(255,255,255,${a})`); rg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(g.px,g.py,r,0,Math.PI*2); ctx.fill();
+  }
+  for(let i=mergeGlows.length-1;i>=0;i--){
+    const g=mergeGlows[i],age=Math.max(0,(now-g.t)/550);
+    if(age>1){mergeGlows.splice(i,1);continue;}
+    const p=Math.max(0,Math.sin(age*Math.PI)),a=.6*p,r=Math.max(0.01,CELL*(.12+.36*p));
+    ctx.shadowColor='#00ffcc'; ctx.shadowBlur=18*p;
+    const rg=ctx.createRadialGradient(g.px,g.py,0,g.px,g.py,r);
+    rg.addColorStop(0,`rgba(0,255,180,${a})`); rg.addColorStop(1,'rgba(0,255,180,0)');
+    ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(g.px,g.py,r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.shadowBlur=0; ctx.restore();
+
+  // 4. Activate new cascade entries after first draw (startTime sentinel)
+  for(const casc of colorCascades){
+    if(casc.startTime===0) casc.startTime=now+casc._delay;
+  }
+
+  // 5. Solve queue
+  if(gs.autoSolving && gs.solveQueue){
+    const rodsAnimating=gs.drawn.some(d=>(d.progress??1)<1);
+    const busy=rodsAnimating||colorCascades.length>0||vanishingRods.length>0;
+    if(!busy){
+      if(gs.solveQueue.length>0){
+        const step=gs.solveQueue.shift();
+        const stepNow=performance.now();
+        if(step.type==='remove'){
+          const [y,col]=step.key.split(',').map(Number);
+          const segsAtY=gs.rocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
+          const si=segsAtY.findIndex(s=>`${y},${s.col}`===step.key);
+          const segEndCol=si>=0&&si+1<segsAtY.length?segsAtY[si+1].col-1:COLS-1;
+          tapGlows.push({px:(col+0.5)*CELL,py:y*CELL,t:stepNow});
+          // DON'T mutate gs.opened yet — wait for vanish to finish so tiles stay correct
+          const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+          spawnVanish(col*CELL+1,y*CELL,(segEndCol+1)*CELL-1,()=>{
+            gs.opened.add(step.key); // mutate only after rod is gone
+            const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+            spawnCascade(y,'up',hmBefore,hmAfter);
+          });
+          playVanish();
+        } else {
+          // draw step — cascade fires AFTER rod sweep completes
+          const newRod={y:step.y,c0:step.c0,c1:step.c1,progress:0,_cascadeFired:false};
+          newRod._cascadeCb=()=>{
+            const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn.filter(d=>d!==newRod));
+            const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+            spawnCascade(step.y,'down',hmBefore,hmAfter);
+          };
+          gs.drawn.push(newRod);
+          tapGlows.push({px:(step.c0+step.c1)/2*CELL,py:step.y*CELL,t:stepNow});
+          playDraw();
+        }
+      } else {
+        gs.autoSolving=false;
+        gs.solved=true;
+        gs.solveQueue=undefined;
+        document.getElementById('nextBtn').disabled=false;
+        document.getElementById('msg').textContent='SOLVED!';
+        cP.style.boxShadow=`0 0 0 2px #a259ff,0 0 40px #a259ff66`;
+        launchConfetti();
+        playWin();
+      }
+    }
+  }
+
+  // 6. Match check
+  if(!gs.solved && !gs.autoSolving){
+    const curHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+    const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
+    const matchKey=JSON.stringify(curHm);
+    if(matchKey!==lastMatchState){
+      lastMatchState=matchKey;
+      checkWin(false);
+    }
+  }
+
+  updateConfetti();
+}
+
+// ── Cascade ───────────────────────────────────────────────────────────────────
+// hmBefore: game state before action (to detect which cells change)
+// hmAfter: game state after action (target colors)
+// Uses renderedHues as fromHue (actual screen state = smooth start)
+// Uses hmBefore != hmAfter to SELECT cells (catches cells even if screen already correct)
+function spawnCascade(y, dir, hmBefore, hmAfter){
+  const affectedRows=new Set();
+  for(let c=0;c<COLS;c++) for(let r=0;r<ROWS;r++){
+    if(hmBefore[c][r]===hmAfter[c][r]) continue;
+    const toHue=hmAfter[c][r];
+    const ex=colorCascades.findIndex(e=>e.col===c&&e.row===r);
+    if(ex>=0){
+      if(colorCascades[ex].toHue===toHue) continue;
+      colorCascades.splice(ex,1);
+    }
+    const fromHue=renderedHues[c][r];
+    const dist=dir==='down' ? r : (ROWS-1-r);
+    colorCascades.push({col:c,row:r,fromHue,toHue,_delay:dist*109,startTime:0});
+    affectedRows.add(r);
+  }
+  // Play staggered tones per row in cascade direction
+  [...affectedRows].sort((a,b)=>dir==='down'?a-b:b-a).forEach((r,i)=>playCascade(dir,i));
+}
+
+// ── Vanish ────────────────────────────────────────────────────────────────────
+function spawnVanish(px0,py,px1,onComplete){
+  vanishingRods.push({px0,py,px1,start:performance.now(),dur:576,onComplete});
+}
+
+// ── Win check ─────────────────────────────────────────────────────────────────
+function checkWin(playerSolved){
+  const curHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
+  if(hueMapsMatch(curHm,tgtHm)){
+    gs.solved=true;
+    document.getElementById('nextBtn').disabled=false;
+    document.getElementById('msg').textContent='SOLVED!';
+    cP.style.boxShadow=`0 0 0 2px #a259ff,0 0 40px #a259ff66`;
+    launchConfetti();
+    playWin();
+  }
+}
+
+// ── Solve ─────────────────────────────────────────────────────────────────────
+document.getElementById('solveBtn').addEventListener('click',()=>{
+  if(!gs||gs.solved) return;
+  gs.autoSolving=true;
+  gs.opened=new Set();
+  gs.drawn=[];
+  colorCascades.length=0;
+  vanishingRods.length=0;
+  const hm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  renderedHues=hm.map(col=>[...col]);
+  solveGen++;
+  gs._solveGen=solveGen;
+  const removeSteps=[...gs.toRemove].map(k=>({type:'remove',key:k,y:parseInt(k)}));
+  const drawSteps=gs.toDraw.map(d=>({type:'draw',y:d.y,c0:d.c0,c1:d.c1}));
+  // Shuffle both arrays then interleave randomly — never purely top-to-bottom
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  shuffle(removeSteps); shuffle(drawSteps);
+  // Interleave: alternate remove/draw when possible
+  const queue=[];
+  const r=[...removeSteps], d=[...drawSteps];
+  while(r.length||d.length){
+    if(r.length&&d.length) (Math.random()<0.5?queue.push(r.shift()):queue.push(d.shift()));
+    else if(r.length) queue.push(r.shift());
+    else queue.push(d.shift());
+  }
+  gs.solveQueue=queue;
+});
+
+// ── Commit draw ───────────────────────────────────────────────────────────────
+function commitDraw(y,c0,c1){
+  if(c1-c0<1) return;
+  const now=performance.now();
+  const existing=gs.drawn.findIndex(d=>d.y===y&&d.c0===c0&&d.c1===c1);
+  if(existing>=0){
+    // Remove existing rod — cascade up immediately (no sweep)
+    const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+    gs.drawn.splice(existing,1);
+    const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+    spawnCascade(y,'up',hmBefore,hmAfter);
+    spawnVanish(c0*CELL+1,y*CELL,c1*CELL-1,()=>checkWin(true));
+    playVanish();
+  } else {
+    // Add new rod — cascade fires AFTER sweep animation finishes
+    const newRod={y,c0,c1,progress:0,_cascadeFired:false};
+    newRod._cascadeCb=()=>{
+      const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn.filter(d=>d!==newRod));
+      const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+      spawnCascade(y,'down',hmBefore,hmAfter);
+      checkWin(true);
+    };
+    gs.drawn.push(newRod);
+    mergeGlows.push({px:(c0+c1)/2*CELL,py:y*CELL,t:now});
+    playDraw();
+  }
+  tapGlows.push({px:(c0+c1)/2*CELL,py:y*CELL,t:now});
+  tapHistory.push(`draw:${y},${c0},${c1}`);
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+function pxToCell(clientX,clientY){
+  const r=cP.getBoundingClientRect();
+  return {col:(clientX-r.left)/CELL, row:(clientY-r.top)/CELL};
+}
+
+function handleTap(col,row){
+  const now=performance.now();
+  const icol=Math.floor(col);
+  const snapY=Math.round(row);
+
+  // Tap drawn rod to remove
+  if(snapY>=1&&snapY<=ROWS-1&&Math.abs(row-snapY)<0.45){
+    const hit=gs.drawn.findIndex(d=>d.y===snapY&&icol>=d.c0&&icol<d.c1&&!d._vanishing&&(d.progress??1)>=1);
+    if(hit>=0){
+      const d=gs.drawn[hit];
+      const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+      gs.drawn.splice(hit,1);
+      const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+      spawnCascade(d.y,'up',hmBefore,hmAfter);
+      tapGlows.push({px:(d.c0+d.c1)/2*CELL,py:d.y*CELL,t:now});
+      spawnVanish(d.c0*CELL+1,d.y*CELL,d.c1*CELL-1,()=>checkWin(true));
+      playVanish();
+      tapHistory.push(`draw:${d.y},${d.c0},${d.c1}`);
+      return;
+    }
+  }
+
+  // Tap gold rod to remove
+  const activeRocks=gs.rocks.filter(r=>!gs.opened.has(`${r.y},${r.col}`));
+  let bestY=null, bestDist=0.6;
+  for(let y=1;y<ROWS;y++){
+    const s=segRockAt(activeRocks,y,icol);
+    if(!s) continue;
+    const d=Math.abs(y-row);
+    if(d<bestDist){bestDist=d; bestY=y;}
+  }
+  if(bestY===null) return;
+  const seg=segRockAt(activeRocks,bestY,icol);
+  if(!seg) return;
+  const key=`${bestY},${seg.col}`;
+  const segsAtY=gs.rocks.filter(r=>r.y===bestY).sort((a,b)=>a.col-b.col);
+  const si=segsAtY.findIndex(s=>s.col===seg.col);
+  const segEndCol=si+1<segsAtY.length?segsAtY[si+1].col-1:COLS-1;
+
+  tapGlows.push({px:(icol+0.5)*CELL,py:bestY*CELL,t:now});
+  mergeGlows.push({px:(icol+0.5)*CELL,py:bestY*CELL,t:now});
+  // Capture before, mutate, capture after, cascade
+  const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  gs.opened.add(key);
+  const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  spawnCascade(bestY,'up',hmBefore,hmAfter);
+  spawnVanish(seg.col*CELL+1,bestY*CELL,(segEndCol+1)*CELL-1,()=>checkWin(true));
+  playVanish();
+  tapHistory.push(key);
+}
+
+let dragStart=null;
+function onTouchStart(e){
+  e.preventDefault();
+  if(gs.solved||gs.autoSolving) return;
+  const t=e.touches[0];
+  const {col,row}=pxToCell(t.clientX,t.clientY);
+  dragStart={col,row,moved:false,endCol:col,endRow:row};
+}
+function onTouchMove(e){
+  e.preventDefault();
+  if(!dragStart) return;
+  const t=e.touches[0];
+  const {col,row}=pxToCell(t.clientX,t.clientY);
+  if(Math.abs(col-dragStart.col)>0.3||Math.abs(row-dragStart.row)>0.3) dragStart.moved=true;
+  dragStart.endCol=col; dragStart.endRow=row;
+}
+function onTouchEnd(e){
+  e.preventDefault();
+  if(!dragStart) return;
+  const ds=dragStart; dragStart=null;
+  if(!gs||gs.solved||gs.autoSolving) return;
+  const snapY=Math.round(ds.row);
+  const onBoundary=snapY>=1&&snapY<=ROWS-1&&Math.abs(ds.row-snapY)<0.45;
+  const didDrag=Math.abs(ds.endCol-ds.col)>0.15||Math.abs(ds.endRow-ds.row)>0.15;
+  if(onBoundary && didDrag){
+    const lo=Math.min(ds.col,ds.endCol);
+    const hi=Math.max(ds.col,ds.endCol);
+    const c0=Math.floor(lo);
+    const c1=Math.max(c0+1, Math.round(hi)); // round snaps at cell midpoint, not edge
+    commitDraw(snapY,c0,c1);
+  } else {
+    handleTap(ds.col,ds.row);
+  }
+}
+
+let mouseDown=false, mouseStart=null;
+function onMouseDown(e){
+  if(gs.solved||gs.autoSolving) return;
+  const {col,row}=pxToCell(e.clientX,e.clientY);
+  mouseDown=true; mouseStart={col,row,moved:false,endCol:col,endRow:row};
+}
+function onMouseMove(e){
+  if(!mouseDown||!mouseStart) return;
+  const {col,row}=pxToCell(e.clientX,e.clientY);
+  if(Math.abs(col-mouseStart.col)>0.3) mouseStart.moved=true;
+  mouseStart.endCol=col; mouseStart.endRow=row;
+}
+function onMouseUp(e){
+  if(!mouseDown) return;
+  mouseDown=false;
+  const ms=mouseStart; mouseStart=null;
+  if(!gs||gs.solved||gs.autoSolving) return;
+  const snapY=Math.round(ms.row);
+  const onBoundary=snapY>=1&&snapY<=ROWS-1&&Math.abs(ms.row-snapY)<0.45;
+  const didDrag=Math.abs(ms.endCol-ms.col)>0.15||Math.abs(ms.endRow-ms.row)>0.15;
+  if(onBoundary && didDrag){
+    const lo=Math.min(ms.col,ms.endCol);
+    const hi=Math.max(ms.col,ms.endCol);
+    const c0=Math.floor(lo);
+    const c1=Math.max(c0+1, Math.round(hi));
+    commitDraw(snapY,c0,c1);
+  } else {
+    handleTap(ms.col,ms.row);
+  }
+}
+
+cP.addEventListener('touchstart',onTouchStart,{passive:false});
+cP.addEventListener('touchmove',onTouchMove,{passive:false});
+cP.addEventListener('touchend',onTouchEnd,{passive:false});
+cP.addEventListener('mousedown',onMouseDown);
+cP.addEventListener('mousemove',onMouseMove);
+cP.addEventListener('mouseup',onMouseUp);
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+document.getElementById('undoBtn').addEventListener('click',()=>{
+  if(!gs||gs.solved||gs.autoSolving||tapHistory.length===0) return;
+  const action=tapHistory.pop();
+  colorCascades.length=0;
+  vanishingRods.length=0;
+  if(action.startsWith('draw:')){
+    const [y,c0,c1]=action.slice(5).split(',').map(Number);
+    const idx=gs.drawn.findIndex(d=>d.y===y&&d.c0===c0&&d.c1===c1);
+    if(idx>=0) gs.drawn.splice(idx,1);
+    else gs.drawn.push({y,c0,c1,progress:1,_cascadeFired:true});
+    playVanish(); // undoing a draw = rod disappears
+  } else {
+    gs.opened.delete(action);
+    playDraw();   // undoing a remove = rod reappears
+  }
+  const hm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  renderedHues=hm.map(col=>[...col]);
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>initLevel(levelIdx));
+document.getElementById('nextBtn').addEventListener('click',()=>{
+  levelIdx=(levelIdx+1)%LEVELS.length;
+  initLevel(levelIdx);
+});
+
+// ── Color Burst Splash ────────────────────────────────────────────────────────
+const cc=document.getElementById('confetti'), cctx=cc.getContext('2d');
+cc.width=innerWidth*DPR; cc.height=innerHeight*DPR;
+cc.style.width=innerWidth+'px'; cc.style.height=innerHeight+'px';
+cctx.setTransform(DPR,0,0,DPR,0,0);
+
+let splashParticles=[];
+
+function launchConfetti(){
+  splashParticles=[];
+  // Get the play board rect
+  const boardRect=cP.getBoundingClientRect();
+  const boardX=boardRect.left;
+  const boardY=boardRect.top;
+  const boardW=boardRect.width;
+  const boardH=boardRect.height;
+
+  // Grab current tile colors from renderedHues
+  const hues=renderedHues;
+
+  // Spawn particles from each tile, exploding outward
+  for(let col=0;col<COLS;col++) for(let row=0;row<ROWS;row++){
+    const hue=hues[col]?.[row]??210;
+    // tile center in screen coords
+    const tx=boardX + (col+0.5)*(boardW/COLS);
+    const ty=boardY + (row+0.5)*(boardH/ROWS);
+    // direction from board center
+    const cx=boardX+boardW/2, cy=boardY+boardH/2;
+    const dx=tx-cx, dy=ty-cy;
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const nx=dx/dist, ny=dy/dist;
+
+    // 3-5 particles per tile
+    const count=3+Math.floor(Math.random()*3);
+    for(let i=0;i<count;i++){
+      const speed=3+Math.random()*6+dist*0.018;
+      const spread=(Math.random()-0.5)*1.8;
+      const vx=nx*speed + spread*ny;
+      const vy=ny*speed - spread*nx + (Math.random()-0.5)*2;
+      const size=3+Math.random()*7;
+      splashParticles.push({
+        x:tx, y:ty,
+        vx, vy,
+        size,
+        hue,
+        alpha:1,
+        decay:0.012+Math.random()*0.01,
+        gravity:0.15+Math.random()*0.1,
+        shape:Math.random()<0.6?'circle':'rect',
+        rot:Math.random()*Math.PI*2,
+        rotV:(Math.random()-0.5)*0.2,
+        delay: (dist*0.4 + Math.random()*80), // tiles further out fire later
+        born: performance.now()
+      });
+    }
+  }
+}
+
+function updateConfetti(){
+  if(!splashParticles.length) return;
+  cctx.clearRect(0,0,innerWidth,innerHeight);
+  const now=performance.now();
+  const alive=[];
+  for(const p of splashParticles){
+    if(now-p.born < p.delay){ alive.push(p); continue; }
+    p.x+=p.vx; p.y+=p.vy;
+    p.vy+=p.gravity;
+    p.vx*=0.97;
+    p.rot+=p.rotV;
+    p.alpha-=p.decay;
+    if(p.alpha<=0) continue;
+    cctx.save();
+    cctx.globalAlpha=Math.min(p.alpha,1);
+    cctx.shadowColor=`hsla(${p.hue},100%,70%,${p.alpha})`;
+    cctx.shadowBlur=p.size*1.5;
+    cctx.fillStyle=`hsla(${p.hue},100%,65%,1)`;
+    cctx.translate(p.x,p.y); cctx.rotate(p.rot);
+    if(p.shape==='circle'){
+      cctx.beginPath(); cctx.arc(0,0,p.size/2,0,Math.PI*2); cctx.fill();
+    } else {
+      cctx.fillRect(-p.size/2,-p.size/3,p.size,p.size*0.6);
+    }
+    cctx.restore();
+    alive.push(p);
+  }
+  splashParticles=alive;
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+initLevel(0);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

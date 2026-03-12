@@ -1,0 +1,2576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a1a18">
+<title>UNTANGLE ME</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap"></noscript>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#1a1a18;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:100vh;font-family:'Share Tech Mono',monospace;
+  color:#c8d8b0;user-select:none;overflow:hidden;touch-action:none;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;}
+.wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px}
+.title{font-family:'VT323',monospace;font-size:clamp(26px,5vw,44px);color:#76b900;
+  text-shadow:0 0 12px #76b90077,0 0 30px #76b90033;letter-spacing:8px;line-height:1}
+.toprow{display:flex;gap:7px;align-items:stretch;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.badge{background:#111310;border:1px solid #2a3a1a;padding:5px 12px;font-size:11px;
+  border-radius:1px;min-width:150px;text-align:center;letter-spacing:1px;
+  transition:color .15s,border-color .15s,text-shadow .2s;display:flex;align-items:center;justify-content:center;}
+.badge.many{color:#e05030;border-color:#4a1a0a}
+.badge.few{color:#d4a843;border-color:#4a3800}
+.badge.zero{color:#76b900;border-color:#76b900;text-shadow:0 0 8px #76b90088}
+.btn{background:#111310;border:1px solid #2a3a1a;color:#76b900;padding:5px 16px;
+  font-family:'Share Tech Mono',monospace;font-size:14px;cursor:pointer;
+  border-radius:1px;letter-spacing:1px;transition:all .15s}
+.btn:hover{background:#1a2010;border-color:#76b900;color:#a0e030}
+.btn:active{transform:scale(.97)}
+.stars{font-size:13px;letter-spacing:4px;min-height:18px;color:#d4a843}
+canvas{display:block;touch-action:none;border-radius:3px;
+  box-shadow:0 4px 40px #00000088,0 0 0 2px #2a3a20,0 0 0 4px #111310}
+.foot{font-size:8px;color:#3a4a28;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">UNTANGLE ME</div>
+  <div class="stars" id="stars"></div>
+  <canvas id="c"></canvas>
+  <div class="toprow">
+    <div class="badge many" id="badge">VIOLATIONS: --</div>
+    <button class="btn" id="solveBtn">SOLVE</button>
+    <button class="btn" id="resetBtn">RESET</button>
+  </div>
+</div>
+<script>
+
+const TILE=60,COLS=8,ROWS=8,CW=COLS*TILE,CH=ROWS*TILE;
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const DPR=window.devicePixelRatio||1;
+canvas.width=CW*DPR;canvas.height=CH*DPR;
+ctx.scale(DPR,DPR);
+// roundRect polyfill for older browsers
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.arcTo(x+w,y,x+w,y+r,r);
+    this.lineTo(x+w,y+h-r);this.arcTo(x+w,y+h,x+w-r,y+h,r);
+    this.lineTo(x+r,y+h);this.arcTo(x,y+h,x,y+h-r,r);
+    this.lineTo(x,y+r);this.arcTo(x,y,x+r,y,r);this.closePath();
+  };
+}
+function sizeCanvas(){
+  const s=Math.min(innerWidth-20,innerHeight-200,360);
+  canvas.style.width=s+'px';canvas.style.height=s+'px';
+}
+sizeCanvas();addEventListener('resize',()=>{sizeCanvas();kick();});
+
+const LEVELS=[
+// L1: BOOT UP
+{title:'BOOT UP',stars:1,chips:[
+  {id:'U1',label:'LM358',w:2,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LM741',w:1,h:1,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'UA741',w:1,h:1,col:5,row:2,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'left',idx:0},to:{cid:'U3',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'10K',col:5,row:7,w:1,h:1}
+],solution:{U1:{col:6,row:4},U2:{col:2,row:0},U3:{col:0,row:0}}},
+// L2: TRACE IT
+{title:'TRACE IT',stars:1,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:3,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:7,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:5,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'left',idx:1},to:{cid:'U3',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'connector',label:'J1',col:5,row:5,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'4K7',col:7,row:3,w:1,h:1}
+],solution:{U1:{col:6,row:2},U2:{col:6,row:6},U3:{col:4,row:6}}},
+// L3: SIGNAL
+{title:'SIGNAL',stars:1,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:7,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:7,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:7,row:3,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:2,row:0,w:1,h:1}
+],solution:{U1:{col:2,row:6},U2:{col:6,row:2},U3:{col:2,row:4}}},
+// L4: BRIDGE
+{title:'BRIDGE',stars:1,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:7,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:7,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:7,row:3,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:2,row:0,w:1,h:1}
+],solution:{U1:{col:2,row:6},U2:{col:6,row:2},U3:{col:2,row:4}}},
+// L5: LADDER
+{title:'LADDER',stars:1,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:7,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:7,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:7,row:3,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:2,row:0,w:1,h:1}
+],solution:{U1:{col:2,row:6},U2:{col:6,row:2},U3:{col:2,row:4}}},
+// L6: CROSSBAR
+{title:'CROSSBAR',stars:1,chips:[
+  {id:'U1',label:'TLC272',w:2,h:1,col:0,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'NE555',w:1,h:2,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74HC04',w:2,h:1,col:5,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4066',w:1,h:2,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'top',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'right',idx:0},to:{cid:'U4',side:'left',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:0,row:0,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:2,row:6,w:1,h:1}
+],solution:{U1:{col:6,row:0},U2:{col:2,row:4},U3:{col:4,row:2},U4:{col:6,row:2}}},
+// L7: MATRIX
+{title:'MATRIX',stars:2,chips:[
+  {id:'U1',label:'CD4017',w:1,h:2,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'NE555',w:1,h:2,col:7,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'UA741',w:1,h:1,col:4,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74LS00',w:2,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'right',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'bottom',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'4148',col:4,row:3,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'10u',col:1,row:0,w:1,h:1}
+],solution:{U1:{col:6,row:2},U2:{col:0,row:0},U3:{col:0,row:6},U4:{col:2,row:6}}},
+// L8: BYPASS
+{title:'BYPASS',stars:2,chips:[
+  {id:'U1',label:'74HC04',w:2,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LF356',w:1,h:2,col:7,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM324',w:2,h:1,col:1,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:2,row:3,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'left',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'right',idx:0},to:{cid:'U4',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#3399ff',col:0,row:7,w:1,h:1},
+  {id:'OB2',type:'transformer',label:'T1',col:6,row:5,w:1,h:1},
+  {id:'OB3',type:'diode',label:'5819',col:5,row:5,w:1,h:1}
+],solution:{U1:{col:0,row:0},U2:{col:0,row:2},U3:{col:4,row:4},U4:{col:2,row:2}}},
+// L9: FEEDBACK
+{title:'FEEDBACK',stars:2,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TL081',w:1,h:1,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74HC04',w:2,h:1,col:0,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LF356',w:1,h:2,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'10u',col:5,row:2,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'10K',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'47n',col:3,row:5,w:1,h:1}
+],solution:{U1:{col:4,row:2},U2:{col:6,row:4},U3:{col:6,row:6},U4:{col:4,row:6}}},
+// L10: LOOPBACK
+{title:'LOOPBACK',stars:2,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74HC04',w:2,h:1,col:6,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM324',w:2,h:1,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:7,row:7,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'right',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'left',idx:0},to:{cid:'U4',side:'top',idx:1}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'top',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:5,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J1',col:1,row:0,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'4K7',col:7,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:2,row:2},U3:{col:0,row:2},U4:{col:4,row:2}}},
+// L11: JUNCTION
+{title:'JUNCTION',stars:2,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74LS00',w:2,h:1,col:5,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74HC04',w:2,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LF356',w:1,h:2,col:3,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U4',side:'right',idx:1},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'left',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:1},to:{cid:'U3',side:'left',idx:1}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'top',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'5819',col:3,row:2,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'100u',col:4,row:1,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J2',col:0,row:2,w:1,h:1}
+],solution:{U1:{col:0,row:0},U2:{col:2,row:4},U3:{col:2,row:0},U4:{col:6,row:6}}},
+// L12: NETLIST
+{title:'NETLIST',stars:2,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:4,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'TLC272',w:2,h:1,col:2,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'UA741',w:1,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'top',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U4',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'47n',col:5,row:6,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ff2233',col:0,row:3,w:1,h:1},
+  {id:'OB3',type:'crystal',label:'8MHz',col:2,row:0,w:1,h:1}
+],solution:{U1:{col:2,row:2},U2:{col:6,row:6},U3:{col:4,row:4},U4:{col:2,row:6}}},
+// L13: SCHEMATIC
+{title:'SCHEMATIC',stars:2,chips:[
+  {id:'U1',label:'CD4017',w:1,h:2,col:1,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74LS00',w:2,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'NE555',w:1,h:2,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74HC04',w:2,h:1,col:6,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'right',idx:1}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'top',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'4K7',col:7,row:2,w:1,h:1},
+  {id:'OB2',type:'crystal',label:'16MHz',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'100n',col:1,row:6,w:1,h:1}
+],solution:{U1:{col:2,row:4},U2:{col:2,row:2},U3:{col:4,row:4},U4:{col:4,row:0}}},
+// L14: CIRCUIT
+{title:'CIRCUIT',stars:2,chips:[
+  {id:'U1',label:'CD4017',w:1,h:2,col:1,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74LS00',w:2,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'NE555',w:1,h:2,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74HC04',w:2,h:1,col:6,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U3',side:'right',idx:1}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'top',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'4K7',col:7,row:2,w:1,h:1},
+  {id:'OB2',type:'crystal',label:'16MHz',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'100n',col:1,row:6,w:1,h:1}
+],solution:{U1:{col:2,row:4},U2:{col:2,row:2},U3:{col:4,row:4},U4:{col:4,row:0}}},
+// L15: TOPOLOGY
+{title:'TOPOLOGY',stars:3,chips:[
+  {id:'U1',label:'TL081',w:1,h:1,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4040',w:1,h:2,col:2,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM358',w:2,h:1,col:4,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74HC04',w:2,h:1,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'MC1458',w:1,h:2,col:3,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U5',side:'left',idx:1},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U5',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'right',idx:1},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'top',idx:1},to:{cid:'U2',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'crystal',label:'8MHz',col:4,row:4,w:1,h:1},
+  {id:'OB2',type:'diode',label:'4148',col:7,row:5,w:1,h:1},
+  {id:'OB3',type:'inductor',label:'10u',col:2,row:4,w:1,h:1}
+],solution:{U1:{col:0,row:2},U2:{col:0,row:0},U3:{col:6,row:4},U4:{col:6,row:0},U5:{col:6,row:2}}},
+// L16: DATAPATH
+{title:'DATAPATH',stars:3,chips:[
+  {id:'U1',label:'CD4017',w:1,h:2,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'UA741',w:1,h:1,col:4,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74LS00',w:2,h:1,col:2,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4066',w:1,h:2,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'LM358',w:2,h:1,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'left',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'left',idx:1},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'top',idx:1},to:{cid:'U5',side:'left',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'100n',col:6,row:2,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#3399ff',col:5,row:4,w:1,h:1},
+  {id:'OB3',type:'transformer',label:'T1',col:2,row:5,w:1,h:1}
+],solution:{U1:{col:3,row:6},U2:{col:4,row:0},U3:{col:1,row:1},U4:{col:3,row:1},U5:{col:6,row:4}}},
+// L17: PIPELINE
+{title:'PIPELINE',stars:3,chips:[
+  {id:'U1',label:'74HC04',w:2,h:1,col:0,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4066',w:1,h:2,col:4,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'TL081',w:1,h:1,col:2,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'NE555',w:1,h:2,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'LM741',w:1,h:1,col:7,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U5',side:'bottom',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'right',idx:1},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'top',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'left',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U5',side:'left',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#ffaa00',col:5,row:4,w:1,h:1},
+  {id:'OB2',type:'capacitor',label:'10u',col:1,row:5,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'10K',col:0,row:3,w:1,h:1}
+],solution:{U1:{col:0,row:0},U2:{col:6,row:6},U3:{col:2,row:4},U4:{col:4,row:2},U5:{col:0,row:2}}},
+// L18: BUS FAULT
+{title:'BUS FAULT',stars:3,chips:[
+  {id:'U1',label:'74HC04',w:2,h:1,col:6,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:5,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74LS00',w:2,h:1,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'UA741',w:1,h:1,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'MC1458',w:1,h:2,col:5,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'bottom',idx:1},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'top',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U3',side:'right',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'10u',col:4,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#22ff44',col:6,row:2,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J1',col:5,row:4,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'4K7',col:3,row:6,w:1,h:1}
+],solution:{U1:{col:0,row:2},U2:{col:0,row:0},U3:{col:2,row:0},U4:{col:4,row:4},U5:{col:4,row:0}}},
+// L19: DEADLOCK
+{title:'DEADLOCK',stars:3,chips:[
+  {id:'U1',label:'LM741',w:1,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74HC04',w:2,h:1,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4017',w:1,h:2,col:2,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'NE555',w:1,h:2,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74LS00',w:2,h:1,col:1,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'right',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'left',idx:1},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U5',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'transformer',label:'T1',col:6,row:0,w:1,h:1},
+  {id:'OB2',type:'diode',label:'5819',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'inductor',label:'100u',col:7,row:2,w:1,h:1},
+  {id:'OB4',type:'connector',label:'J2',col:3,row:5,w:1,h:1}
+],solution:{U1:{col:3,row:2},U2:{col:5,row:5},U3:{col:1,row:3},U4:{col:4,row:3},U5:{col:2,row:4}}},
+// L20: FULL CHIP
+{title:'FULL CHIP',stars:3,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74LS00',w:2,h:1,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:3,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:1,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'MC1458',w:1,h:2,col:3,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'right',idx:1},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'top',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'left',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U4',side:'right',idx:0},to:{cid:'U5',side:'top',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'10K',col:6,row:2,w:1,h:1},
+  {id:'OB2',type:'capacitor',label:'47n',col:5,row:0,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#ff2233',col:2,row:5,w:1,h:1},
+  {id:'OB4',type:'crystal',label:'8MHz',col:3,row:0,w:1,h:1}
+],solution:{U1:{col:5,row:4},U2:{col:6,row:6},U3:{col:6,row:5},U4:{col:1,row:1},U5:{col:7,row:1}}},
+// L21: CLUSTER
+{title:'CLUSTER',stars:3,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:1,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74LS00',w:2,h:1,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:4,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'MC1458',w:1,h:2,col:0,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'TLC272',w:2,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'top',idx:1},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'right',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'top',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'right',idx:0},to:{cid:'U5',side:'left',idx:1}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'connector',label:'J1',col:7,row:4,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'4K7',col:1,row:0,w:1,h:1},
+  {id:'OB3',type:'crystal',label:'16MHz',col:5,row:6,w:1,h:1},
+  {id:'OB4',type:'capacitor',label:'100n',col:6,row:5,w:1,h:1}
+],solution:{U1:{col:2,row:0},U2:{col:4,row:2},U3:{col:0,row:6},U4:{col:4,row:6},U5:{col:4,row:0}}},
+// L22: MESH NET
+{title:'MESH NET',stars:3,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4017',w:1,h:2,col:0,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'MC1458',w:1,h:2,col:1,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'NE555',w:1,h:2,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'right',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'right',idx:1},to:{cid:'U4',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:7,row:2,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:7,row:6,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'1K',col:4,row:7,w:1,h:1},
+  {id:'OB4',type:'led',label:'LED',ledColor:'#ffaa00',col:7,row:7,w:1,h:1}
+],solution:{U1:{col:1,row:1},U2:{col:0,row:4},U3:{col:3,row:3},U4:{col:3,row:5},U5:{col:1,row:3}}},
+// L23: FABRIC
+{title:'FABRIC',stars:4,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4017',w:1,h:2,col:0,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'MC1458',w:1,h:2,col:1,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'NE555',w:1,h:2,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'right',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'right',idx:1},to:{cid:'U4',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:7,row:2,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:7,row:6,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'1K',col:4,row:7,w:1,h:1},
+  {id:'OB4',type:'led',label:'LED',ledColor:'#ffaa00',col:7,row:7,w:1,h:1}
+],solution:{U1:{col:1,row:1},U2:{col:0,row:4},U3:{col:3,row:3},U4:{col:3,row:5},U5:{col:1,row:3}}},
+// L24: CROSSLINK
+{title:'CROSSLINK',stars:4,chips:[
+  {id:'U1',label:'LM741',w:1,h:1,col:6,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:0,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'UA741',w:1,h:1,col:2,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'MC1458',w:1,h:2,col:3,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM358',w:2,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U6',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U6',side:'bottom',idx:1},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'right',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'left',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'top',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'top',idx:0},to:{cid:'U3',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'crystal',label:'16MHz',col:5,row:4,w:1,h:1},
+  {id:'OB2',type:'capacitor',label:'100n',col:4,row:2,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#3399ff',col:7,row:3,w:1,h:1},
+  {id:'OB4',type:'transformer',label:'T1',col:7,row:4,w:1,h:1}
+],solution:{U1:{col:0,row:6},U2:{col:4,row:6},U3:{col:2,row:4},U4:{col:0,row:4},U5:{col:4,row:4},U6:{col:6,row:0}}},
+// L25: ARBITRATE
+{title:'ARBITRATE',stars:4,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:7,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:1,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM358',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'TLC272',w:2,h:1,col:0,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4066',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'CD4040',w:1,h:2,col:5,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U5',side:'bottom',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'top',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'top',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'top',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'left',idx:1},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U4',side:'bottom',idx:1},to:{cid:'U6',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:2,row:1,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:4,row:5,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'10u',col:1,row:4,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'10K',col:4,row:7,w:1,h:1}
+],solution:{U1:{col:2,row:2},U2:{col:2,row:4},U3:{col:2,row:6},U4:{col:4,row:0},U5:{col:0,row:6},U6:{col:6,row:2}}},
+// L26: DISPATCH
+{title:'DISPATCH',stars:4,chips:[
+  {id:'U1',label:'LM324',w:2,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:2,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:2,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4066',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'MC1458',w:1,h:2,col:6,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U6',side:'left',idx:1},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'left',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U4',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U5',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U4',side:'left',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'4148',col:7,row:6,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'10u',col:2,row:2,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#22ff44',col:4,row:0,w:1,h:1},
+  {id:'OB4',type:'connector',label:'J1',col:1,row:6,w:1,h:1}
+],solution:{U1:{col:6,row:2},U2:{col:6,row:0},U3:{col:6,row:6},U4:{col:0,row:6},U5:{col:2,row:6},U6:{col:6,row:4}}},
+// L27: PIPELINE+
+{title:'PIPELINE+',stars:4,chips:[
+  {id:'U1',label:'LM324',w:2,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:2,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:2,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4066',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'MC1458',w:1,h:2,col:6,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U6',side:'left',idx:1},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'left',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U4',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U5',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U4',side:'left',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'4148',col:7,row:6,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'10u',col:2,row:2,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#22ff44',col:4,row:0,w:1,h:1},
+  {id:'OB4',type:'connector',label:'J1',col:1,row:6,w:1,h:1}
+],solution:{U1:{col:6,row:2},U2:{col:6,row:0},U3:{col:6,row:6},U4:{col:0,row:6},U5:{col:2,row:6},U6:{col:6,row:4}}},
+// L28: MEMMAP
+{title:'MEMMAP',stars:4,chips:[
+  {id:'U1',label:'LM741',w:1,h:1,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LM358',w:2,h:1,col:3,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4017',w:1,h:2,col:7,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM324',w:2,h:1,col:4,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4040',w:1,h:2,col:0,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'UA741',w:1,h:1,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U6',side:'left',idx:1},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'left',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U5',side:'right',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'top',idx:0},to:{cid:'U6',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'10u',col:5,row:4,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'10K',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'47n',col:6,row:7,w:1,h:1},
+  {id:'OB4',type:'led',label:'LED',ledColor:'#ff2233',col:5,row:7,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'8MHz',col:7,row:1,w:1,h:1}
+],solution:{U1:{col:2,row:6},U2:{col:2,row:2},U3:{col:4,row:2},U4:{col:0,row:2},U5:{col:6,row:4},U6:{col:6,row:2}}},
+// L29: CACHELINE
+{title:'CACHELINE',stars:4,chips:[
+  {id:'U1',label:'74HC04',w:2,h:1,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4040',w:1,h:2,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74LS00',w:2,h:1,col:2,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'UA741',w:1,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'TL081',w:1,h:1,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'CD4066',w:1,h:2,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'top',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'left',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:1,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J1',col:3,row:5,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'4K7',col:5,row:0,w:1,h:1},
+  {id:'OB4',type:'crystal',label:'16MHz',col:1,row:4,w:1,h:1}
+],solution:{U1:{col:4,row:6},U2:{col:3,row:2},U3:{col:4,row:4},U4:{col:3,row:4},U5:{col:6,row:3},U6:{col:2,row:2}}},
+// L30: PREFETCH
+{title:'PREFETCH',stars:4,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LF356',w:1,h:2,col:7,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM358',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TL081',w:1,h:1,col:6,row:3,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'right',idx:1},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U6',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:7,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:1,row:5,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'10K',col:3,row:7,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'47n',col:0,row:4,w:1,h:1}
+],solution:{U1:{col:4,row:1},U2:{col:3,row:4},U3:{col:2,row:4},U4:{col:5,row:0},U5:{col:3,row:5},U6:{col:2,row:0}}},
+// L31: INTERRUPT
+{title:'INTERRUPT',stars:4,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LF356',w:1,h:2,col:7,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM358',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TL081',w:1,h:1,col:6,row:3,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'right',idx:1},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U6',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:7,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:1,row:5,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'10K',col:3,row:7,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'47n',col:0,row:4,w:1,h:1}
+],solution:{U1:{col:4,row:1},U2:{col:3,row:4},U3:{col:2,row:4},U4:{col:5,row:0},U5:{col:3,row:5},U6:{col:2,row:0}}},
+// L32: EXCEPTION
+{title:'EXCEPTION',stars:4,chips:[
+  {id:'U1',label:'CD4066',w:1,h:2,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LF356',w:1,h:2,col:7,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM358',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TL081',w:1,h:1,col:6,row:3,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'right',idx:1},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:1},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U6',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:7,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:1,row:5,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'10K',col:3,row:7,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'47n',col:0,row:4,w:1,h:1}
+],solution:{U1:{col:4,row:1},U2:{col:3,row:4},U3:{col:2,row:4},U4:{col:5,row:0},U5:{col:3,row:5},U6:{col:2,row:0}}},
+// L33: SYSCALL
+{title:'SYSCALL',stars:5,chips:[
+  {id:'U1',label:'MC1458',w:1,h:2,col:2,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LF356',w:1,h:2,col:4,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:5,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'UA741',w:1,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'NE555',w:1,h:2,col:6,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'right',idx:1},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U6',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'bottom',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'top',idx:1},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U6',side:'left',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'connector',label:'J2',col:7,row:0,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'1K',col:0,row:2,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#ffaa00',col:1,row:2,w:1,h:1},
+  {id:'OB4',type:'capacitor',label:'10u',col:6,row:6,w:1,h:1},
+  {id:'OB5',type:'resistor',label:'10K',col:7,row:1,w:1,h:1}
+],solution:{U1:{col:4,row:6},U2:{col:2,row:4},U3:{col:4,row:4},U4:{col:6,row:0},U5:{col:2,row:2},U6:{col:0,row:4}}},
+// L34: CONTEXT
+{title:'CONTEXT',stars:5,chips:[
+  {id:'U1',label:'MC1458',w:1,h:2,col:2,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LF356',w:1,h:2,col:4,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:5,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'UA741',w:1,h:1,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'NE555',w:1,h:2,col:6,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'right',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'right',idx:1},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U6',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'bottom',idx:1},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'top',idx:1},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U6',side:'left',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'connector',label:'J2',col:7,row:0,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'1K',col:0,row:2,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#ffaa00',col:1,row:2,w:1,h:1},
+  {id:'OB4',type:'capacitor',label:'10u',col:6,row:6,w:1,h:1},
+  {id:'OB5',type:'resistor',label:'10K',col:7,row:1,w:1,h:1}
+],solution:{U1:{col:4,row:6},U2:{col:2,row:4},U3:{col:4,row:4},U4:{col:6,row:0},U5:{col:2,row:2},U6:{col:0,row:4}}},
+// L35: SCHEDULER
+{title:'SCHEDULER',stars:5,chips:[
+  {id:'U1',label:'NE555',w:1,h:2,col:1,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4040',w:1,h:2,col:1,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:1,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'UA741',w:1,h:1,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'LF356',w:1,h:2,col:6,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'CD4017',w:1,h:2,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'left',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U5',side:'left',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U5',side:'right',idx:1},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'right',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'right',idx:1},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'left',idx:1},to:{cid:'U6',side:'left',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'100n',col:6,row:0,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#3399ff',col:3,row:7,w:1,h:1},
+  {id:'OB3',type:'transformer',label:'T1',col:0,row:3,w:1,h:1},
+  {id:'OB4',type:'diode',label:'5819',col:6,row:7,w:1,h:1},
+  {id:'OB5',type:'inductor',label:'100u',col:1,row:1,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:2,row:2},U3:{col:6,row:6},U4:{col:2,row:6},U5:{col:2,row:0},U6:{col:4,row:2}}},
+// L36: HYPERVISOR
+{title:'HYPERVISOR',stars:5,chips:[
+  {id:'U1',label:'LM324',w:2,h:1,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'LF356',w:1,h:2,col:7,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM358',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'NE555',w:1,h:2,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'TLC272',w:2,h:1,col:2,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'UA741',w:1,h:1,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'left',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'right',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U6',side:'top',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'bottom',idx:1},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'left',idx:0},to:{cid:'U5',side:'left',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#ffaa00',col:4,row:2,w:1,h:1},
+  {id:'OB2',type:'capacitor',label:'10u',col:5,row:4,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'10K',col:7,row:7,w:1,h:1},
+  {id:'OB4',type:'capacitor',label:'47n',col:7,row:0,w:1,h:1},
+  {id:'OB5',type:'led',label:'LED',ledColor:'#ff2233',col:4,row:6,w:1,h:1}
+],solution:{U1:{col:6,row:2},U2:{col:2,row:2},U3:{col:2,row:6},U4:{col:4,row:4},U5:{col:0,row:0},U6:{col:6,row:6}}},
+// L37: CONTAINER
+{title:'CONTAINER',stars:5,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:7,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74LS00',w:2,h:1,col:4,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:5,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM741',w:1,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'top',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U6',side:'top',idx:1},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'top',idx:0},to:{cid:'U4',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'top',idx:1},to:{cid:'U2',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U5',side:'top',idx:0},to:{cid:'U6',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:2,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J1',col:1,row:3,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'4K7',col:3,row:2,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'16MHz',col:6,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:4,row:6},U3:{col:2,row:4},U4:{col:0,row:6},U5:{col:4,row:0},U6:{col:0,row:2}}},
+// L38: KERNEL
+{title:'KERNEL',stars:5,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:7,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74LS00',w:2,h:1,col:4,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:5,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM741',w:1,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'top',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U6',side:'top',idx:1},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'top',idx:0},to:{cid:'U4',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'top',idx:1},to:{cid:'U2',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U5',side:'top',idx:0},to:{cid:'U6',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:2,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J1',col:1,row:3,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'4K7',col:3,row:2,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'16MHz',col:6,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:4,row:6},U3:{col:2,row:4},U4:{col:0,row:6},U5:{col:4,row:0},U6:{col:0,row:2}}},
+// L39: FIRMWARE
+{title:'FIRMWARE',stars:5,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:7,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74LS00',w:2,h:1,col:4,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:5,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM741',w:1,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'top',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U6',side:'top',idx:1},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'top',idx:0},to:{cid:'U4',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'top',idx:1},to:{cid:'U2',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U5',side:'top',idx:0},to:{cid:'U6',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:2,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J1',col:1,row:3,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'4K7',col:3,row:2,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'16MHz',col:6,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:4,row:6},U3:{col:2,row:4},U4:{col:0,row:6},U5:{col:4,row:0},U6:{col:0,row:2}}},
+// L40: BOOTSTRAP
+{title:'BOOTSTRAP',stars:5,chips:[
+  {id:'U1',label:'UA741',w:1,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4066',w:1,h:2,col:7,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'74LS00',w:2,h:1,col:4,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:5,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM741',w:1,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'top',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U6',side:'top',idx:1},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'top',idx:0},to:{cid:'U4',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'left',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'top',idx:1},to:{cid:'U2',side:'top',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U5',side:'top',idx:0},to:{cid:'U6',side:'bottom',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'10u',col:6,row:5,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#22ff44',col:1,row:2,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J1',col:1,row:3,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'4K7',col:3,row:2,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'16MHz',col:6,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:4,row:6},U3:{col:2,row:4},U4:{col:0,row:6},U5:{col:4,row:0},U6:{col:0,row:2}}},
+// L41: HANDSHAKE
+{title:'HANDSHAKE',stars:5,chips:[
+  {id:'U1',label:'NE555',w:1,h:2,col:0,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:2,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:5,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'LM741',w:1,h:1,col:3,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'MC1458',w:1,h:2,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'top',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'top',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'right',idx:1},to:{cid:'U6',side:'top',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'top',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U3',side:'bottom',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U4',side:'top',idx:1},to:{cid:'U5',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'inductor',label:'100u',col:4,row:2,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J2',col:2,row:6,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'1K',col:6,row:7,w:1,h:1},
+  {id:'OB4',type:'led',label:'LED',ledColor:'#ffaa00',col:0,row:0,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'10u',col:2,row:0,w:1,h:1},
+  {id:'OB6',type:'resistor',label:'10K',col:3,row:5,w:1,h:1}
+],solution:{U1:{col:2,row:4},U2:{col:6,row:6},U3:{col:4,row:6},U4:{col:4,row:4},U5:{col:0,row:2},U6:{col:6,row:2}}},
+// L42: PROTOCOL
+{title:'PROTOCOL',stars:5,chips:[
+  {id:'U1',label:'LM741',w:1,h:1,col:0,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:6,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'CD4040',w:1,h:2,col:4,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:2,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74LS00',w:2,h:1,col:4,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'CD4066',w:1,h:2,col:0,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'left',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U6',side:'left',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U6',side:'bottom',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'bottom',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'top',idx:0},to:{cid:'U5',side:'left',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U4',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#ff2233',col:6,row:1,w:1,h:1},
+  {id:'OB2',type:'crystal',label:'8MHz',col:7,row:1,w:1,h:1},
+  {id:'OB3',type:'diode',label:'4148',col:7,row:6,w:1,h:1},
+  {id:'OB4',type:'inductor',label:'10u',col:4,row:4,w:1,h:1},
+  {id:'OB5',type:'led',label:'LED',ledColor:'#22ff44',col:5,row:0,w:1,h:1},
+  {id:'OB6',type:'connector',label:'J1',col:0,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:0},U2:{col:2,row:2},U3:{col:6,row:4},U4:{col:6,row:6},U5:{col:0,row:2},U6:{col:4,row:6}}},
+// L43: ENCODING
+{title:'ENCODING',stars:5,chips:[
+  {id:'U1',label:'CD4040',w:1,h:2,col:7,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4066',w:1,h:2,col:3,row:5,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'TLC272',w:2,h:1,col:1,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:1,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'LM741',w:1,h:1,col:4,row:7,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'NE555',w:1,h:2,col:4,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'top',idx:1},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U5',side:'left',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'right',idx:1},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'left',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'right',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'left',idx:0},to:{cid:'U5',side:'top',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'crystal',label:'16MHz',col:5,row:2,w:1,h:1},
+  {id:'OB2',type:'capacitor',label:'100n',col:4,row:3,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#3399ff',col:4,row:5,w:1,h:1},
+  {id:'OB4',type:'transformer',label:'T1',col:3,row:0,w:1,h:1},
+  {id:'OB5',type:'diode',label:'5819',col:6,row:0,w:1,h:1},
+  {id:'OB6',type:'inductor',label:'100u',col:0,row:0,w:1,h:1}
+],solution:{U1:{col:2,row:0},U2:{col:2,row:6},U3:{col:0,row:6},U4:{col:4,row:0},U5:{col:2,row:2},U6:{col:0,row:4}}},
+// L44: DECODE
+{title:'DECODE',stars:5,chips:[
+  {id:'U1',label:'74LS00',w:2,h:1,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'MC1458',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:6,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'NE555',w:1,h:2,col:1,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4017',w:1,h:2,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TLC272',w:2,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'right',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U5',side:'left',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'top',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U6',side:'bottom',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'left',idx:1},to:{cid:'U5',side:'left',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'top',idx:1},to:{cid:'U4',side:'left',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U6',side:'bottom',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U6',side:'top',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'resistor',label:'1K',col:2,row:6,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ffaa00',col:7,row:5,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'10u',col:3,row:4,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'10K',col:0,row:7,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'47n',col:6,row:6,w:1,h:1},
+  {id:'OB6',type:'led',label:'LED',ledColor:'#ff2233',col:4,row:7,w:1,h:1}
+],solution:{U1:{col:4,row:6},U2:{col:6,row:2},U3:{col:0,row:2},U4:{col:0,row:4},U5:{col:4,row:2},U6:{col:0,row:6}}},
+// L45: CHECKSUM
+{title:'CHECKSUM',stars:5,chips:[
+  {id:'U1',label:'LM324',w:2,h:1,col:6,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'CD4040',w:1,h:2,col:2,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LM741',w:1,h:1,col:1,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'74HC04',w:2,h:1,col:3,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TL081',w:1,h:1,col:1,row:7,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U5',side:'right',idx:1},to:{cid:'U3',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'left',idx:1},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U5',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U4',side:'right',idx:0},to:{cid:'U2',side:'top',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:1},to:{cid:'U6',side:'left',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U1',side:'top',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'top',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U5',side:'left',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'4148',col:0,row:0,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'10u',col:3,row:1,w:1,h:1},
+  {id:'OB3',type:'led',label:'LED',ledColor:'#22ff44',col:7,row:0,w:1,h:1},
+  {id:'OB4',type:'connector',label:'J1',col:7,row:7,w:1,h:1},
+  {id:'OB5',type:'resistor',label:'4K7',col:7,row:4,w:1,h:1},
+  {id:'OB6',type:'crystal',label:'16MHz',col:5,row:3,w:1,h:1}
+],solution:{U1:{col:4,row:4},U2:{col:2,row:0},U3:{col:6,row:2},U4:{col:4,row:0},U5:{col:4,row:2},U6:{col:6,row:4}}},
+// L46: PARITY
+{title:'PARITY',stars:5,chips:[
+  {id:'U1',label:'74HC04',w:2,h:1,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:1,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'TL081',w:1,h:1,col:0,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LF356',w:1,h:2,col:1,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4040',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'MC1458',w:1,h:2,col:2,row:2,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U5',side:'right',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U6',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U4',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U4',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:1}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'left',idx:0},to:{cid:'U3',side:'bottom',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U4',side:'top',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'top',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U3',side:'top',idx:0},to:{cid:'U5',side:'top',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#3399ff',col:7,row:5,w:1,h:1},
+  {id:'OB2',type:'transformer',label:'T1',col:3,row:0,w:1,h:1},
+  {id:'OB3',type:'diode',label:'5819',col:4,row:6,w:1,h:1},
+  {id:'OB4',type:'inductor',label:'100u',col:6,row:6,w:1,h:1},
+  {id:'OB5',type:'connector',label:'J2',col:1,row:6,w:1,h:1},
+  {id:'OB6',type:'resistor',label:'1K',col:5,row:3,w:1,h:1},
+  {id:'OB7',type:'led',label:'LED',ledColor:'#ffaa00',col:5,row:5,w:1,h:1}
+],solution:{U1:{col:4,row:0},U2:{col:4,row:4},U3:{col:2,row:2},U4:{col:6,row:0},U5:{col:0,row:4},U6:{col:0,row:0}}},
+// L47: HAMMING
+{title:'HAMMING',stars:5,chips:[
+  {id:'U1',label:'LM324',w:2,h:1,col:3,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'TLC272',w:2,h:1,col:1,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'74LS00',w:2,h:1,col:5,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4040',w:1,h:2,col:3,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'MC1458',w:1,h:2,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM358',w:2,h:1,col:0,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'top',idx:0},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U3',side:'right',idx:1},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U5',side:'right',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'top',idx:0},to:{cid:'U4',side:'top',idx:1}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U3',side:'left',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U2',side:'right',idx:0},to:{cid:'U6',side:'left',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'10u',col:0,row:6,w:1,h:1},
+  {id:'OB2',type:'resistor',label:'10K',col:1,row:0,w:1,h:1},
+  {id:'OB3',type:'capacitor',label:'47n',col:7,row:5,w:1,h:1},
+  {id:'OB4',type:'led',label:'LED',ledColor:'#ff2233',col:1,row:3,w:1,h:1},
+  {id:'OB5',type:'crystal',label:'8MHz',col:2,row:5,w:1,h:1},
+  {id:'OB6',type:'diode',label:'4148',col:6,row:7,w:1,h:1},
+  {id:'OB7',type:'inductor',label:'10u',col:5,row:5,w:1,h:1}
+],solution:{U1:{col:0,row:4},U2:{col:2,row:4},U3:{col:2,row:0},U4:{col:0,row:0},U5:{col:4,row:0},U6:{col:4,row:2}}},
+// L48: TURBO
+{title:'TURBO',stars:5,chips:[
+  {id:'U1',label:'74LS00',w:2,h:1,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'74HC04',w:2,h:1,col:0,row:1,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'NE555',w:1,h:2,col:7,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4017',w:1,h:2,col:2,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4040',w:1,h:2,col:5,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TLC272',w:2,h:1,col:5,row:5,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'right',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U4',side:'bottom',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'bottom',idx:1},to:{cid:'U6',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U6',side:'top',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U2',side:'right',idx:1},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U5',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'left',idx:0},to:{cid:'U6',side:'bottom',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U1',side:'right',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U1',side:'bottom',idx:1},to:{cid:'U6',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'led',label:'LED',ledColor:'#22ff44',col:6,row:1,w:1,h:1},
+  {id:'OB2',type:'connector',label:'J1',col:2,row:7,w:1,h:1},
+  {id:'OB3',type:'resistor',label:'4K7',col:1,row:7,w:1,h:1},
+  {id:'OB4',type:'crystal',label:'16MHz',col:7,row:0,w:1,h:1},
+  {id:'OB5',type:'capacitor',label:'100n',col:2,row:5,w:1,h:1},
+  {id:'OB6',type:'led',label:'LED',ledColor:'#3399ff',col:0,row:0,w:1,h:1},
+  {id:'OB7',type:'transformer',label:'T1',col:5,row:3,w:1,h:1}
+],solution:{U1:{col:2,row:0},U2:{col:2,row:6},U3:{col:4,row:0},U4:{col:0,row:2},U5:{col:4,row:6},U6:{col:2,row:4}}},
+// L49: CONVOLVE
+{title:'CONVOLVE',stars:5,chips:[
+  {id:'U1',label:'TLC272',w:2,h:1,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'NE555',w:1,h:2,col:1,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'MC1458',w:1,h:2,col:0,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'CD4066',w:1,h:2,col:2,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'CD4017',w:1,h:2,col:0,row:0,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'TL081',w:1,h:1,col:0,row:6,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'top',idx:0},to:{cid:'U2',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U1',side:'right',idx:1},to:{cid:'U6',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U4',side:'left',idx:0},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U2',side:'bottom',idx:0},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U3',side:'left',idx:0},to:{cid:'U6',side:'right',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U3',side:'right',idx:1},to:{cid:'U5',side:'top',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U2',side:'left',idx:1},to:{cid:'U4',side:'left',idx:1}},
+  {id:'W9',color:'#ff8844',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U5',side:'left',idx:0}},
+  {id:'W10',color:'#44ff88',from:{cid:'U3',side:'left',idx:1},to:{cid:'U4',side:'right',idx:0}}
+],obstacles:[
+  {id:'OB1',type:'diode',label:'5819',col:4,row:1,w:1,h:1},
+  {id:'OB2',type:'inductor',label:'100u',col:5,row:5,w:1,h:1},
+  {id:'OB3',type:'connector',label:'J2',col:6,row:7,w:1,h:1},
+  {id:'OB4',type:'resistor',label:'1K',col:7,row:6,w:1,h:1},
+  {id:'OB5',type:'led',label:'LED',ledColor:'#ffaa00',col:2,row:7,w:1,h:1},
+  {id:'OB6',type:'capacitor',label:'10u',col:4,row:4,w:1,h:1},
+  {id:'OB7',type:'resistor',label:'10K',col:7,row:2,w:1,h:1}
+],solution:{U1:{col:0,row:6},U2:{col:2,row:2},U3:{col:2,row:0},U4:{col:2,row:4},U5:{col:0,row:2},U6:{col:6,row:0}}},
+// L50: MASTER
+{title:'MASTER',stars:5,chips:[
+  {id:'U1',label:'LM358',w:2,h:1,col:5,row:3,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U2',label:'UA741',w:1,h:1,col:3,row:2,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U3',label:'LF356',w:1,h:2,col:4,row:6,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U4',label:'LM741',w:1,h:1,col:5,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U5',label:'NE555',w:1,h:2,col:6,row:4,sides:{top:2,bottom:2,left:2,right:2}},
+  {id:'U6',label:'LM324',w:2,h:1,col:4,row:0,sides:{top:2,bottom:2,left:2,right:2}}
+],wires:[
+  {id:'W1',color:'#ff7700',from:{cid:'U1',side:'left',idx:0},to:{cid:'U3',side:'left',idx:0}},
+  {id:'W2',color:'#00ccff',from:{cid:'U3',side:'left',idx:1},to:{cid:'U4',side:'top',idx:0}},
+  {id:'W3',color:'#ffdd00',from:{cid:'U4',side:'right',idx:0},to:{cid:'U6',side:'bottom',idx:0}},
+  {id:'W4',color:'#88ff44',from:{cid:'U1',side:'bottom',idx:0},to:{cid:'U2',side:'bottom',idx:0}},
+  {id:'W5',color:'#ff44cc',from:{cid:'U4',side:'top',idx:1},to:{cid:'U5',side:'bottom',idx:0}},
+  {id:'W6',color:'#ff3333',from:{cid:'U5',side:'right',idx:0},to:{cid:'U6',side:'top',idx:0}},
+  {id:'W7',color:'#44ffee',from:{cid:'U2',side:'bottom',idx:1},to:{cid:'U3',side:'right',idx:0}},
+  {id:'W8',color:'#bb44ff',from:{cid:'U1',side:'right',idx:0},to:{cid:'U6',side:'left',idx:0}},
+  {id:'W9',color:'#ff8844',from:{cid:'U3',side:'bottom',idx:0},to:{cid:'U6',side:'bottom',idx:1}},
+  {id:'W10',color:'#44ff88',from:{cid:'U1',side:'top',idx:0},to:{cid:'U5',side:'right',idx:1}}
+],obstacles:[
+  {id:'OB1',type:'capacitor',label:'47n',col:5,row:6,w:1,h:1},
+  {id:'OB2',type:'led',label:'LED',ledColor:'#ff2233',col:7,row:0,w:1,h:1},
+  {id:'OB3',type:'crystal',label:'8MHz',col:1,row:6,w:1,h:1},
+  {id:'OB4',type:'diode',label:'4148',col:3,row:1,w:1,h:1},
+  {id:'OB5',type:'inductor',label:'10u',col:1,row:5,w:1,h:1},
+  {id:'OB6',type:'led',label:'LED',ledColor:'#22ff44',col:2,row:6,w:1,h:1},
+  {id:'OB7',type:'connector',label:'J1',col:5,row:1,w:1,h:1}
+],solution:{U1:{col:4,row:0},U2:{col:2,row:2},U3:{col:0,row:6},U4:{col:6,row:4},U5:{col:4,row:2},U6:{col:6,row:2}}}
+];
+
+const dc=x=>JSON.parse(JSON.stringify(x));
+const SIDES=['top','bottom','left','right'];
+let chips,wires,obstacles,lvlIdx;
+let drag=null,ghost=null,liveCrossings=[];
+let solved=false,animating=false,animTimer=null;
+let pinColors={};
+const cleared=new Array(LEVELS.length).fill(false);
+const gchip=id=>chips.find(c=>c.id===id);
+
+function loadLevel(idx){
+  lvlIdx=idx;
+  const L=LEVELS[idx];
+  chips=dc(L.chips);wires=dc(L.wires);obstacles=dc(L.obstacles);
+  drag=null;ghost=null;solved=false;animating=false;
+  if(animTimer){clearTimeout(animTimer);animTimer=null;}
+  buildPinColors();
+  invalidateCache();
+
+  liveCrossings=computeViolations(null);
+  updateBadge(liveCrossings.length);
+  renderStars();
+  kick();
+}
+
+function buildPinColors(){
+  pinColors={};
+  for(const w of wires){
+    pinColors[w.from.cid+'|'+w.from.side+'|'+w.from.idx]=w.color;
+    pinColors[w.to.cid+'|'+w.to.side+'|'+w.to.idx]=w.color;
+  }
+}
+
+function updateBadge(n){
+  const el=document.getElementById('badge');
+  if(n===0){el.textContent='SOLVED!';el.className='badge zero';}
+  else{el.textContent='VIOLATIONS: '+n;el.className='badge '+(n<=2?'few':'many');}
+}
+function renderStars(){
+  const L=LEVELS[lvlIdx],el=document.getElementById('stars');
+  el.textContent=cleared[lvlIdx]?'*'.repeat(L.stars)+'.'.repeat(5-L.stars):'.'.repeat(L.stars);
+  el.style.color=cleared[lvlIdx]?'#ffcc00':'#1a4a1a';
+}
+
+function pinPx(c,side,idx){
+  const x=c.col*TILE,y=c.row*TILE,w=c.w*TILE,h=c.h*TILE;
+  const n=c.sides[side],frac=(idx+1)/(n+1);
+  if(side==='top')    return{x:x+frac*w,y:y};
+  if(side==='bottom') return{x:x+frac*w,y:y+h};
+  if(side==='left')   return{x:x,y:y+frac*h};
+  return {x:x+w,y:y+frac*h};
+}
+
+const RES=2,GW=COLS*RES,GH=ROWS*RES;
+const DIRS=[{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+const snap=v=>Math.round(v/TILE*RES)/RES*TILE;
+// ── ROUTING: simple L-shaped (H then V). Wires can cross anything. ──
+// Route each wire independently. No obstacle avoidance.
+function routeWire(w, chipOv){
+  var lk=function(id){return(chipOv&&chipOv.id===id)?chipOv:gchip(id);};
+  var fc=lk(w.from.cid),tc=lk(w.to.cid);
+  if(!fc||!tc)return[];
+  var A=pinPx(fc,w.from.side,w.from.idx),B=pinPx(tc,w.to.side,w.to.idx);
+  // Elbow: horizontal first, then vertical
+  var M={x:B.x,y:A.y};
+  return[A,M,B];
+}
+
+var _rc=new Map();
+var _liveKey=null,_liveRoutes=null;
+function invalidateCache(){_rc.clear();_liveKey=null;_liveRoutes=null;}
+
+function getRoutes(chipOv){
+  if(!chipOv){
+    var key=chips.map(function(c){return c.id+':'+c.col.toFixed(1)+','+c.row.toFixed(1);}).join('|');
+    if(_rc.has(key))return _rc.get(key);
+    var r=new Map();
+    for(var i=0;i<wires.length;i++)r.set(wires[i].id,routeWire(wires[i],null));
+    _rc.set(key,r);return r;
+  }
+  // Use pixel-level precision key so every drag position gets fresh routes
+  var fpx=Math.round(chipOv.col*TILE),fpy=Math.round(chipOv.row*TILE);
+  var fkey=chipOv.id+':'+fpx+','+fpy;
+  if(fkey===_liveKey)return _liveRoutes;
+  _liveKey=fkey;
+  _liveRoutes=new Map();
+  for(var i=0;i<wires.length;i++)_liveRoutes.set(wires[i].id,routeWire(wires[i],chipOv));
+  return _liveRoutes;
+}
+
+// ── VIOLATION DETECTION ──
+// Returns array of violation objects: {x,y,type} where type is 'cross','obs','chip'
+// Also sets w.violated flag for highlight.
+
+function p2s(pts){
+  var s=[];
+  for(var i=0;i<pts.length-1;i++)
+    s.push({x1:pts[i].x,y1:pts[i].y,x2:pts[i+1].x,y2:pts[i+1].y});
+  return s;
+}
+
+// Returns intersection point if two segments cross (strictly interior), else null
+function segX(a,b){
+  var Z=.1,E=.5;
+  var h1=Math.abs(a.y1-a.y2)<Z,v1=Math.abs(a.x1-a.x2)<Z;
+  var h2=Math.abs(b.y1-b.y2)<Z,v2=Math.abs(b.x1-b.x2)<Z;
+  var hs,vs;
+  if(h1&&v2){hs=a;vs=b;}else if(v1&&h2){hs=b;vs=a;}else return null;
+  var hx0=Math.min(hs.x1,hs.x2),hx1=Math.max(hs.x1,hs.x2);
+  var vy0=Math.min(vs.y1,vs.y2),vy1=Math.max(vs.y1,vs.y2);
+  if(vs.x1>hx0+E&&vs.x1<hx1-E&&hs.y1>vy0+E&&hs.y1<vy1-E)return{x:vs.x1,y:hs.y1};
+  return null;
+}
+
+// Does segment pass through a rectangle (col,row,w,h in tile units)?
+// Returns midpoint of overlap if yes, else null.
+// We shrink the rect slightly (margin) so endpoint touches don't count.
+function segHitsRect(seg,rc,rr,rw,rh){
+  var M=4; // pixel margin — avoid flagging endpoint contact
+  var rx0=rc*TILE+M,ry0=rr*TILE+M,rx1=(rc+rw)*TILE-M,ry1=(rr+rh)*TILE-M;
+  // Horizontal segment
+  if(Math.abs(seg.y1-seg.y2)<.1){
+    var y=seg.y1;
+    if(y<ry0||y>ry1)return null;
+    var x0=Math.min(seg.x1,seg.x2),x1=Math.max(seg.x1,seg.x2);
+    var ox0=Math.max(x0,rx0),ox1=Math.min(x1,rx1);
+    if(ox1>ox0+M)return{x:(ox0+ox1)/2,y:y};
+  } else {
+    var x=seg.x1;
+    if(x<rx0||x>rx1)return null;
+    var y0=Math.min(seg.y1,seg.y2),y1=Math.max(seg.y1,seg.y2);
+    var oy0=Math.max(y0,ry0),oy1=Math.min(y1,ry1);
+    if(oy1>oy0+M)return{x:x,y:(oy0+oy1)/2};
+  }
+  return null;
+}
+
+function computeViolations(chipOv){
+  var routes=getRoutes(chipOv);
+  var lk=function(id){return(chipOv&&chipOv.id===id)?chipOv:gchip(id);};
+  var allSegs=wires.map(function(w){
+    return{id:w.id,fromCid:w.from.cid,toCid:w.to.cid,segs:p2s(routes.get(w.id)||[])};
+  });
+  var out=[];
+
+  // 1. Wire-wire crossings
+  for(var i=0;i<allSegs.length;i++)
+    for(var j=i+1;j<allSegs.length;j++)
+      for(var a=0;a<allSegs[i].segs.length;a++)
+        for(var b=0;b<allSegs[j].segs.length;b++){
+          var pt=segX(allSegs[i].segs[a],allSegs[j].segs[b]);
+          if(pt)out.push({x:pt.x,y:pt.y,type:'cross',w1:allSegs[i].id,w2:allSegs[j].id});
+        }
+
+  // 2. Wire-obstacle hits
+  for(var i=0;i<allSegs.length;i++)
+    for(var si=0;si<allSegs[i].segs.length;si++)
+      for(var oi=0;oi<obstacles.length;oi++){
+        var o=obstacles[oi];
+        var pt=segHitsRect(allSegs[i].segs[si],o.col,o.row,o.w,o.h);
+        if(pt)out.push({x:pt.x,y:pt.y,type:'obs',w1:allSegs[i].id});
+      }
+
+  // 3. Wire-chip hits (skip the two chips this wire connects)
+  for(var i=0;i<allSegs.length;i++){
+    var fromCid=allSegs[i].fromCid,toCid=allSegs[i].toCid;
+    for(var si=0;si<allSegs[i].segs.length;si++)
+      for(var ci=0;ci<chips.length;ci++){
+        var c=lk(chips[ci].id);
+        if(c.id===fromCid||c.id===toCid)continue;
+        var pt=segHitsRect(allSegs[i].segs[si],c.col,c.row,c.w,c.h);
+        if(pt)out.push({x:pt.x,y:pt.y,type:'chip',w1:allSegs[i].id,w2:c.id});
+      }
+  }
+
+  return out;
+}
+
+function ovlp(c1,r1,w1,h1,c2,r2,w2,h2){return c1<c2+w2&&c1+w1>c2&&r1<r2+h2&&r1+h1>r2;}
+function canPlace(cid,col,row){
+  // Only restrict out-of-bounds. Overlapping chips/obstacles is allowed
+  // (those are wire violations, not placement violations).
+  var c=gchip(cid);
+  return col>=0&&row>=0&&col+c.w<=COLS&&row+c.h<=ROWS;
+}
+
+function checkSolve(){
+  if(liveCrossings.length===0&&!solved){
+    solved=true;cleared[lvlIdx]=true;renderStars();spawnWin();
+    // Auto-advance to next level after a short delay
+    if(lvlIdx+1<LEVELS.length){
+      setTimeout(function(){loadLevel(lvlIdx+1);},2200);
+    }
+  }
+}
+
+// PCB palette
+// ═══════════════════════════════════════════════════════════
+//  ULTRA-REALISTIC PCB RENDERER
+// ═══════════════════════════════════════════════════════════
+
+// Seeded deterministic RNG
+const _rng=(function(s){let x=s;return function(){
+  x=Math.sin(x*127.1+311.7)*43758.5453123;return x-Math.floor(x);
+};})(42);
+
+// ── Pre-generated static PCB geometry ──────────────────────
+// Vias: mix of signal vias and thermal vias
+const VIA_PTS=(function(){
+  var v=[];
+  for(var i=0;i<14;i++){
+    v.push({x:_rng()*CW,y:_rng()*CH,
+      r:_rng()>0.75?2.2:_rng()>0.5?3.2:1.8,
+      type:_rng()>0.7?'thermal':'signal'});
+  }
+  return v;
+})();
+
+// Dense copper trace network — L-shaped segments on a grid
+const BG_TRACES=(function(){
+  var t=[],W=CW,H=CH;
+  // Horizontal bus lines
+  var busRows=[0.15,0.28,0.42,0.57,0.71,0.85];
+  busRows.forEach(function(r){
+    var y=r*H, x0=_rng()*80, x1=W-_rng()*80;
+    var w=_rng()>0.6?2.5:_rng()>0.3?1.5:1.0;
+    t.push({x0:x0,y0:y,x1:x1,y1:y,w:w,layer:_rng()>0.4?0:1});
+  });
+  // Vertical bus lines
+  var busCols=[0.12,0.25,0.38,0.52,0.65,0.78,0.91];
+  busCols.forEach(function(c){
+    var x=c*W, y0=_rng()*60, y1=H-_rng()*60;
+    var w=_rng()>0.6?2.0:1.2;
+    t.push({x0:x,y0:y0,x1:x,y1:y1,w:w,layer:_rng()>0.5?0:1});
+  });
+  // Short connecting stubs
+  for(var i=0;i<35;i++){
+    var x=20+_rng()*(W-40), y=20+_rng()*(H-40);
+    var horiz=_rng()>0.5, len=15+_rng()*60;
+    var w=0.8+_rng()*1.2;
+    if(horiz) t.push({x0:x,y0:y,x1:x+len,y1:y,w:w,layer:_rng()>0.5?0:1});
+    else       t.push({x0:x,y0:y,x1:x,y1:y+len,w:w,layer:_rng()>0.5?0:1});
+  }
+  // L-shaped routing stubs
+  for(var i=0;i<20;i++){
+    var x=30+_rng()*(W-80), y=30+_rng()*(H-80);
+    var dx=((_rng()>0.5?1:-1)*(20+_rng()*50))|0;
+    var dy=((_rng()>0.5?1:-1)*(20+_rng()*50))|0;
+    var w=0.9+_rng()*0.8;
+    t.push({x0:x,y0:y,x1:x+dx,y1:y,w:w,layer:0});
+    t.push({x0:x+dx,y0:y,x1:x+dx,y1:y+dy,w:w,layer:0});
+  }
+  return t;
+})();
+
+// Ground pour polygons with irregular shapes
+const GND_POURS=(function(){
+  var p=[];
+  var regions=[
+    {cx:0.1,cy:0.1,rx:0.18,ry:0.12},
+    {cx:0.88,cy:0.12,rx:0.14,ry:0.18},
+    {cx:0.08,cy:0.88,rx:0.16,ry:0.14},
+    {cx:0.9,cy:0.85,rx:0.13,ry:0.18},
+    {cx:0.5,cy:0.05,rx:0.22,ry:0.08},
+    {cx:0.5,cy:0.95,rx:0.18,ry:0.07},
+    {cx:0.05,cy:0.5,rx:0.07,ry:0.2},
+    {cx:0.95,cy:0.5,rx:0.07,ry:0.18},
+  ];
+  regions.forEach(function(r){
+    // Generate irregular polygon points
+    var pts=[],n=6+Math.floor(_rng()*5);
+    for(var i=0;i<n;i++){
+      var a=(i/n)*Math.PI*2;
+      var rx=r.rx*(0.7+_rng()*0.5)*CW;
+      var ry=r.ry*(0.7+_rng()*0.5)*CH;
+      pts.push({x:r.cx*CW+Math.cos(a)*rx,y:r.cy*CH+Math.sin(a)*ry});
+    }
+    p.push(pts);
+  });
+  return p;
+})();
+
+// Silkscreen: component outlines + ref designators
+const SILK_ITEMS=(function(){
+  var items=[];
+  var refs=['R1','R2','R3','C1','C2','D1','L1','Q1','U5','J1','SW1','TP1','TP2'];
+  for(var i=0;i<22;i++){
+    var x=15+_rng()*(CW-80), y=15+_rng()*(CH-50);
+    var t=_rng();
+    if(t>0.65){
+      // Rectangular component outline
+      items.push({type:'rect',x:x,y:y,w:12+_rng()*40,h:8+_rng()*25});
+    } else if(t>0.3){
+      // Reference designator text
+      items.push({type:'text',x:x,y:y,label:refs[Math.floor(_rng()*refs.length)]});
+    } else {
+      // Circular component (cap, crystal)
+      items.push({type:'circle',x:x+10,y:y+10,r:5+_rng()*12});
+    }
+  }
+  // Pin 1 triangles
+  for(var i=0;i<8;i++){
+    items.push({type:'tri',x:20+_rng()*(CW-40),y:20+_rng()*(CH-40)});
+  }
+  // Plus/minus polarity marks
+  for(var i=0;i<6;i++){
+    items.push({type:'polar',x:20+_rng()*(CW-40),y:20+_rng()*(CH-40)});
+  }
+  return items;
+})();
+
+// Mounting holes
+const MNT_HOLES=[{x:14,y:14},{x:CW-14,y:14},{x:14,y:CH-14},{x:CW-14,y:CH-14}];
+const FIDUC=[{x:22,y:22},{x:CW-22,y:22},{x:22,y:CH-22},{x:CW-22,y:CH-22}];
+
+// ── Pre-render offscreen for performance ─────────────────────
+var _pcbCanvas=null;
+
+function buildPCBCanvas(){
+  var oc=document.createElement('canvas');
+  oc.width=CW;oc.height=CH;
+  var c=oc.getContext('2d');
+
+  // ── 1. FR4 substrate base ─────────────────────────────────
+  // Deep green solder mask with slight blue tint
+  var subG=c.createRadialGradient(CW*0.35,CH*0.3,10,CW*0.55,CH*0.5,CW*0.9);
+  subG.addColorStop(0,'#142d18');
+  subG.addColorStop(0.4,'#0e2112');
+  subG.addColorStop(0.75,'#0a1a0e');
+  subG.addColorStop(1,'#07120a');
+  c.fillStyle=subG;c.fillRect(0,0,CW,CH);
+
+  // ── 2. FR4 fiber-weave texture ────────────────────────────
+  // The characteristic diagonal crosshatch of glass fibers visible
+  // through the translucent solder mask
+  c.globalAlpha=0.028;
+  c.strokeStyle='#4a8a50';c.lineWidth=0.8;
+  var fiberSpacing=7;
+  for(var i=-CH;i<CW+CH;i+=fiberSpacing){
+    c.beginPath();c.moveTo(i,0);c.lineTo(i+CH,CH);c.stroke();
+  }
+  for(var i=-CH;i<CW+CH;i+=fiberSpacing){
+    c.beginPath();c.moveTo(i,0);c.lineTo(i-CH,CH);c.stroke();
+  }
+  // Warp fibers (horizontal)
+  c.globalAlpha=0.018;
+  c.lineWidth=0.6;
+  for(var y=0;y<CH;y+=fiberSpacing){
+    c.beginPath();c.moveTo(0,y);c.lineTo(CW,y);c.stroke();
+  }
+  // Weft fibers (vertical)
+  for(var x=0;x<CW;x+=fiberSpacing){
+    c.beginPath();c.moveTo(x,0);c.lineTo(x,CH);c.stroke();
+  }
+  c.globalAlpha=1;
+
+  // ── 3. Inner copper layer bleed ──────────────────────────
+  // Faint warm copper tint where inner layer copper is dense
+  c.globalAlpha=0.06;
+  var innerG=c.createRadialGradient(CW*0.6,CH*0.4,20,CW*0.5,CH*0.5,CW*0.6);
+  innerG.addColorStop(0,'rgba(180,100,30,0.8)');
+  innerG.addColorStop(0.5,'rgba(140,80,20,0.4)');
+  innerG.addColorStop(1,'rgba(80,40,10,0)');
+  c.fillStyle=innerG;c.fillRect(0,0,CW,CH);
+  c.globalAlpha=1;
+
+  // ── 4. Ground pour polygons ─────────────────────────────
+  GND_POURS.forEach(function(pts){
+    // Copper pour base
+    c.beginPath();c.moveTo(pts[0].x,pts[0].y);
+    pts.forEach(function(p){c.lineTo(p.x,p.y);});c.closePath();
+    c.fillStyle='rgba(140,80,25,0.22)';c.fill();
+    // Hatching inside pour (angled lines = copper fill)
+    c.save();c.clip();
+    c.strokeStyle='rgba(160,90,30,0.18)';c.lineWidth=1.2;
+    for(var i=-200;i<CW+CH;i+=6){
+      c.beginPath();c.moveTo(i,0);c.lineTo(i+CH,CH);c.stroke();
+    }
+    c.restore();
+    // Pour edge
+    c.beginPath();c.moveTo(pts[0].x,pts[0].y);
+    pts.forEach(function(p){c.lineTo(p.x,p.y);});c.closePath();
+    c.strokeStyle='rgba(180,100,35,0.35)';c.lineWidth=1.5;c.stroke();
+  });
+
+  // ── 5. Copper trace network ──────────────────────────────
+  // Layer 0 = top (copper under mask, dark warm brown)
+  // Layer 1 = inner layer (even darker, barely visible)
+  BG_TRACES.forEach(function(t){
+    var alpha=t.layer===0?0.28:0.11;
+    var col=t.layer===0?'rgba(160,90,30,1)':'rgba(120,70,20,1)';
+    c.globalAlpha=alpha;
+    // Trace shadow (depth)
+    c.strokeStyle='rgba(0,0,0,0.5)';
+    c.lineWidth=t.w+1;c.lineCap='square';
+    c.beginPath();c.moveTo(t.x0+0.5,t.y0+0.8);c.lineTo(t.x1+0.5,t.y1+0.8);c.stroke();
+    // Trace body
+    c.strokeStyle=col;c.lineWidth=t.w;
+    c.beginPath();c.moveTo(t.x0,t.y0);c.lineTo(t.x1,t.y1);c.stroke();
+    // Trace top sheen
+    if(t.layer===0 && t.w>1.2){
+      c.strokeStyle='rgba(220,140,60,0.25)';c.lineWidth=t.w*0.35;
+      c.beginPath();c.moveTo(t.x0,t.y0);c.lineTo(t.x1,t.y1);c.stroke();
+    }
+    c.globalAlpha=1;
+  });
+  c.lineCap='butt';
+
+  // ── 6. Solder mask overlay ───────────────────────────────
+  // Semi-transparent green tint that gives PCB its characteristic look
+  var maskG=c.createLinearGradient(0,0,CW,CH);
+  maskG.addColorStop(0,'rgba(8,28,12,0.38)');
+  maskG.addColorStop(0.5,'rgba(5,18,8,0.28)');
+  maskG.addColorStop(1,'rgba(10,25,12,0.42)');
+  c.fillStyle=maskG;c.fillRect(0,0,CW,CH);
+
+  // Subtle mask thickness variation (real PCBs have slight pooling)
+  c.globalAlpha=0.04;
+  for(var i=0;i<8;i++){
+    var bx=_rng()*CW,by=_rng()*CH;
+    var grad2=c.createRadialGradient(bx,by,5,bx,by,80+_rng()*120);
+    grad2.addColorStop(0,'rgba(20,60,25,0.6)');
+    grad2.addColorStop(1,'rgba(0,0,0,0)');
+    c.fillStyle=grad2;c.fillRect(0,0,CW,CH);
+  }
+  c.globalAlpha=1;
+
+  // ── 7. PCB surface micro-texture (noise/grain) ────────────
+  // Simulate solder mask surface roughness
+  c.globalAlpha=0.022;
+  for(var y=0;y<CH;y+=2){
+    for(var x=0;x<CW;x+=2){
+      if(_rng()>0.5){
+        c.fillStyle=_rng()>0.5?'rgba(255,255,255,1)':'rgba(0,0,0,1)';
+        c.fillRect(x,y,1,1);
+      }
+    }
+  }
+  c.globalAlpha=1;
+
+  // ── 8. Silkscreen layer ──────────────────────────────────
+  c.globalAlpha=0.55;c.strokeStyle='rgba(220,235,200,1)';
+  c.fillStyle='rgba(220,235,200,1)';
+  c.font='5px Share Tech Mono,monospace';
+  c.textBaseline='middle';c.textAlign='left';
+  SILK_ITEMS.forEach(function(item){
+    c.globalAlpha=0.14+_rng()*0.08;
+    if(item.type==='rect'){
+      c.lineWidth=0.6;c.strokeRect(item.x,item.y,item.w,item.h);
+      // Corner notch (pin 1)
+      c.lineWidth=0.5;
+      c.beginPath();c.moveTo(item.x,item.y+4);c.lineTo(item.x+4,item.y);c.stroke();
+    } else if(item.type==='circle'){
+      c.lineWidth=0.6;c.beginPath();c.arc(item.x,item.y,item.r,0,Math.PI*2);c.stroke();
+    } else if(item.type==='text'){
+      c.fillText(item.label,item.x,item.y);
+    } else if(item.type==='tri'){
+      // Pin 1 arrow triangle
+      c.beginPath();c.moveTo(item.x,item.y-3);c.lineTo(item.x+5,item.y);
+      c.lineTo(item.x,item.y+3);c.closePath();c.fill();
+    } else if(item.type==='polar'){
+      // + mark
+      c.lineWidth=0.7;
+      c.beginPath();c.moveTo(item.x-3,item.y);c.lineTo(item.x+3,item.y);c.stroke();
+      c.beginPath();c.moveTo(item.x,item.y-3);c.lineTo(item.x,item.y+3);c.stroke();
+    }
+  });
+  c.globalAlpha=1;
+
+
+  // ── 10. Mounting holes — ENIG plated ────────────────────
+  MNT_HOLES.forEach(function(m){
+    // Annular ring clearance on solder mask
+    c.beginPath();c.arc(m.x,m.y,13,0,Math.PI*2);
+    c.fillStyle='#0a1a0c';c.fill();
+    // Copper annular ring
+    c.beginPath();c.arc(m.x,m.y,11,0,Math.PI*2);
+    c.fillStyle='#9a7020';c.fill();
+    // ENIG gold ring
+    var mg=c.createRadialGradient(m.x-3.5,m.y-3.5,0,m.x,m.y,11);
+    mg.addColorStop(0,'rgba(255,242,155,0.95)');
+    mg.addColorStop(0.35,'rgba(215,170,65,0.92)');
+    mg.addColorStop(0.65,'rgba(175,128,38,0.85)');
+    mg.addColorStop(0.88,'rgba(140,95,25,0.75)');
+    mg.addColorStop(1,'rgba(90,55,10,0.5)');
+    c.beginPath();c.arc(m.x,m.y,11,0,Math.PI*2);
+    c.fillStyle=mg;c.fill();
+    c.strokeStyle='rgba(60,35,5,0.7)';c.lineWidth=0.8;c.stroke();
+    // Drill hole
+    c.beginPath();c.arc(m.x,m.y,5,0,Math.PI*2);
+    c.fillStyle='#060c07';c.fill();
+    // Inner drill ring highlight
+    var dh=c.createRadialGradient(m.x-1.5,m.y-1.5,0,m.x,m.y,5);
+    dh.addColorStop(0,'rgba(255,255,255,0.08)');dh.addColorStop(1,'rgba(0,0,0,0)');
+    c.beginPath();c.arc(m.x,m.y,5,0,Math.PI*2);
+    c.fillStyle=dh;c.fill();
+  });
+
+  // ── 11. Fiducial marks ────────────────────────────────────
+  FIDUC.forEach(function(f){
+    // Solder mask clearance
+    c.beginPath();c.arc(f.x,f.y,10,0,Math.PI*2);c.fillStyle='#091209';c.fill();
+    // Copper pad
+    c.beginPath();c.arc(f.x,f.y,6,0,Math.PI*2);c.fillStyle='#9a7828';c.fill();
+    // ENIG gold
+    var fg=c.createRadialGradient(f.x-1.8,f.y-1.8,0,f.x,f.y,6);
+    fg.addColorStop(0,'rgba(255,248,170,1)');
+    fg.addColorStop(0.4,'rgba(215,170,65,0.98)');
+    fg.addColorStop(0.8,'rgba(170,118,32,0.9)');
+    fg.addColorStop(1,'rgba(110,70,15,0.7)');
+    c.beginPath();c.arc(f.x,f.y,6,0,Math.PI*2);c.fillStyle=fg;c.fill();
+    c.strokeStyle='rgba(50,28,4,0.7)';c.lineWidth=0.6;c.stroke();
+  });
+
+  // ── 12. Vias — full ENIG annular rings ───────────────────
+  VIA_PTS.forEach(function(v){
+    var vr=v.r+1.5;
+    // Solder mask clearance (small, subtle)
+    c.beginPath();c.arc(v.x,v.y,vr+1,0,Math.PI*2);
+    c.fillStyle='rgba(5,11,6,0.45)';c.fill();
+    // Muted copper/hasl finish — not bright gold, closer to dull tin
+    c.beginPath();c.arc(v.x,v.y,vr,0,Math.PI*2);
+    c.fillStyle='rgba(110,85,45,0.55)';c.fill();
+    // Subtle sheen — very low opacity, warm grey-brown
+    var vg=c.createRadialGradient(v.x-vr*0.3,v.y-vr*0.3,0,v.x,v.y,vr);
+    vg.addColorStop(0,'rgba(175,148,95,0.5)');
+    vg.addColorStop(0.5,'rgba(130,100,55,0.35)');
+    vg.addColorStop(1,'rgba(80,58,25,0.15)');
+    c.beginPath();c.arc(v.x,v.y,vr,0,Math.PI*2);c.fillStyle=vg;c.fill();
+    c.strokeStyle='rgba(40,25,8,0.4)';c.lineWidth=0.4;c.stroke();
+    // Drill hole
+    c.beginPath();c.arc(v.x,v.y,v.r*0.5,0,Math.PI*2);
+    c.fillStyle='#050c06';c.fill();
+    // Thermal relief spokes
+    if(v.type==='thermal'){
+      c.strokeStyle='rgba(6,14,7,0.7)';c.lineWidth=1;
+      for(var a=0;a<4;a++){
+        var ang=a*Math.PI/2;
+        c.beginPath();
+        c.moveTo(v.x+Math.cos(ang)*v.r*0.55,v.y+Math.sin(ang)*v.r*0.55);
+        c.lineTo(v.x+Math.cos(ang)*(vr+0.3),v.y+Math.sin(ang)*(vr+0.3));
+        c.stroke();
+      }
+    }
+  });
+
+  // ── 13. Board edge — milled FR4 ──────────────────────────
+  // Router bit marks on the edge
+  c.globalAlpha=0.6;
+  c.strokeStyle='rgba(80,120,70,0.4)';c.lineWidth=1;
+  c.strokeRect(0.5,0.5,CW-1,CH-1);
+  // Inner chamfer line (routing allowance)
+  c.strokeStyle='rgba(160,200,140,0.12)';c.lineWidth=2.5;
+  c.strokeRect(3,3,CW-6,CH-6);
+  c.globalAlpha=1;
+
+  // ── 14. Specular highlight — studio light from top-left ──
+  var specG=c.createLinearGradient(0,0,CW*0.6,CH*0.5);
+  specG.addColorStop(0,'rgba(255,255,255,0.04)');
+  specG.addColorStop(0.3,'rgba(255,255,255,0.015)');
+  specG.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=specG;c.fillRect(0,0,CW,CH);
+
+  // Bottom-right darkening (ambient occlusion)
+  var aoG=c.createRadialGradient(CW*0.15,CH*0.15,10,CW*0.7,CH*0.7,CW*0.85);
+  aoG.addColorStop(0,'rgba(0,0,0,0)');
+  aoG.addColorStop(0.6,'rgba(0,0,0,0.04)');
+  aoG.addColorStop(1,'rgba(0,0,0,0.18)');
+  c.fillStyle=aoG;c.fillRect(0,0,CW,CH);
+
+  return oc;
+}
+
+function drawBg(){
+  if(!_pcbCanvas) _pcbCanvas=buildPCBCanvas();
+  ctx.drawImage(_pcbCanvas,0,0);
+
+  // ── Level label — drawn live (changes per level) ─────────
+  var L=LEVELS[lvlIdx];
+  ctx.save();
+  ctx.font='bold 9px Share Tech Mono,monospace';
+  ctx.textAlign='left';ctx.textBaseline='bottom';
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.8)';
+  ctx.fillText(L.title+'   '+(lvlIdx+1)+'/'+LEVELS.length,9,CH-7);
+  // Text
+  ctx.fillStyle='rgba(118,185,0,0.75)';
+  ctx.fillText(L.title+'   '+(lvlIdx+1)+'/'+LEVELS.length,8,CH-8);
+  ctx.restore();
+}
+
+// Helper: drop shadow under a component
+function compShadow(w,h,r){
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.55)';ctx.shadowBlur=6;
+  ctx.shadowOffsetX=3;ctx.shadowOffsetY=4;
+  ctx.fillStyle='rgba(0,0,0,0)';
+  ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,r||2);ctx.fill();
+  ctx.restore();
+}
+
+function drawObs(o){
+  var cx=(o.col+o.w/2)*TILE,cy=(o.row+o.h/2)*TILE;
+  ctx.save();ctx.translate(cx,cy);
+
+  if(o.type==='resistor'){
+    var rw=30,rh=15;
+    // Drop shadow
+    compShadow(rw+8,rh+4,3);
+    // Body base
+    var bg=ctx.createLinearGradient(-rw/2,-rh/2,-rw/2,rh/2);
+    bg.addColorStop(0,'#ddd0a0');bg.addColorStop(0.35,'#c8b888');
+    bg.addColorStop(0.7,'#b0a070');bg.addColorStop(1,'#908050');
+    ctx.beginPath();ctx.roundRect(-rw/2,-rh/2,rw,rh,3);
+    ctx.fillStyle=bg;ctx.fill();
+    // Left bevel (lit)
+    ctx.fillStyle='rgba(255,255,220,0.22)';
+    ctx.beginPath();ctx.roundRect(-rw/2,-rh/2,4,rh,3);ctx.fill();
+    // Bottom bevel (shadow)
+    ctx.fillStyle='rgba(0,0,0,0.28)';
+    ctx.fillRect(-rw/2+2,rh/2-4,rw-4,4);
+    // End terminations — 3D extruded silver caps
+    var capG=ctx.createLinearGradient(-rw/2-5,-rh/2+2,rw/2+5,-rh/2+2);
+    capG.addColorStop(0,'#d0d8d0');capG.addColorStop(0.5,'#b0b8b0');capG.addColorStop(1,'#888e88');
+    ctx.fillStyle=capG;
+    // Left cap
+    ctx.beginPath();ctx.roundRect(-rw/2-5,-rh/2+2,9,rh-4,2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.25)';
+    ctx.fillRect(-rw/2-5,-rh/2+2,3,rh-4); // lit edge
+    ctx.fillStyle='rgba(0,0,0,0.25)';
+    ctx.fillRect(-rw/2+1,-rh/2+2,2,rh-4); // shadow edge
+    // Right cap
+    ctx.fillStyle=capG;
+    ctx.beginPath();ctx.roundRect(rw/2-4,-rh/2+2,9,rh-4,2);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.fillRect(rw/2+3,-rh/2+2,2,rh-4); // shadow edge
+    // Top gloss streak
+    ctx.fillStyle='rgba(255,255,240,0.3)';
+    ctx.beginPath();ctx.roundRect(-rw/2+4,-rh/2+1,rw-8,5,2);ctx.fill();
+    // Laser marking
+    ctx.fillStyle='rgba(80,65,30,0.9)';ctx.font='bold 7px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.label,0,1);
+    // Outer edge
+    ctx.strokeStyle='rgba(60,50,20,0.5)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(-rw/2,-rh/2,rw,rh,3);ctx.stroke();
+
+  } else if(o.type==='capacitor'){
+    var cw=22,ch=22;
+    compShadow(cw+6,ch+6,3);
+    // Body — warm tan, 3D top-lit gradient
+    var cg=ctx.createLinearGradient(-cw/2,-ch/2,-cw/2,ch/2);
+    cg.addColorStop(0,'#dfc870');cg.addColorStop(0.3,'#c4a84a');
+    cg.addColorStop(0.75,'#a08030');cg.addColorStop(1,'#705a18');
+    ctx.beginPath();ctx.roundRect(-cw/2,-ch/2,cw,ch,3);
+    ctx.fillStyle=cg;ctx.fill();
+    // Left lit bevel
+    ctx.fillStyle='rgba(255,240,180,0.25)';
+    ctx.beginPath();ctx.roundRect(-cw/2,-ch/2,4,ch,3);ctx.fill();
+    // Bottom shadow bevel
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.fillRect(-cw/2+3,ch/2-4,cw-6,4);
+    // End caps — extruded ENIG gold
+    var ceg=ctx.createLinearGradient(0,-ch/2,0,ch/2);
+    ceg.addColorStop(0,'#d0b060');ceg.addColorStop(0.5,'#a89040');ceg.addColorStop(1,'#7a6020');
+    ctx.fillStyle=ceg;
+    ctx.beginPath();ctx.roundRect(-cw/2-4,-ch/2+3,7,ch-6,2);ctx.fill();
+    ctx.fillStyle='rgba(255,240,160,0.3)';ctx.fillRect(-cw/2-4,-ch/2+3,3,ch-6);
+    ctx.fillStyle=ceg;
+    ctx.beginPath();ctx.roundRect(cw/2-3,-ch/2+3,7,ch-6,2);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fillRect(cw/2+2,-ch/2+3,2,ch-6);
+    // Top gloss
+    ctx.fillStyle='rgba(255,248,200,0.35)';
+    ctx.beginPath();ctx.roundRect(-cw/2+3,-ch/2+1,cw-6,7,2);ctx.fill();
+    ctx.fillStyle='rgba(80,55,10,0.85)';ctx.font='bold 6px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.label,0,1);
+    ctx.strokeStyle='rgba(60,45,10,0.55)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(-cw/2,-ch/2,cw,ch,3);ctx.stroke();
+
+  } else if(o.type==='diode'){
+    var dw=28,dh=13;
+    compShadow(dw+6,dh+4,2);
+    // Body — dark mold, top lit
+    var dg=ctx.createLinearGradient(-dw/2,-dh/2,-dw/2,dh/2);
+    dg.addColorStop(0,'#484848');dg.addColorStop(0.3,'#2a2a2a');
+    dg.addColorStop(0.8,'#181818');dg.addColorStop(1,'#0c0c0c');
+    ctx.beginPath();ctx.roundRect(-dw/2,-dh/2,dw,dh,2);
+    ctx.fillStyle=dg;ctx.fill();
+    // Lit left bevel
+    ctx.fillStyle='rgba(255,255,255,0.08)';
+    ctx.beginPath();ctx.roundRect(-dw/2,-dh/2,3,dh,2);ctx.fill();
+    // Bottom shadow
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(-dw/2+2,dh/2-3,dw-4,3);
+    // Cathode stripe
+    var sg=ctx.createLinearGradient(dw/2-8,-dh/2,dw/2-2,-dh/2);
+    sg.addColorStop(0,'#c0c0c0');sg.addColorStop(0.5,'#e8e8e8');sg.addColorStop(1,'#a8a8a8');
+    ctx.fillStyle=sg;ctx.fillRect(dw/2-8,-dh/2,6,dh);
+    // Metal end pads with gold sheen
+    var dpg=ctx.createLinearGradient(0,-dh/2,0,dh/2);
+    dpg.addColorStop(0,'#c0c888');dpg.addColorStop(0.5,'#a0a870');dpg.addColorStop(1,'#707850');
+    ctx.fillStyle=dpg;
+    ctx.beginPath();ctx.roundRect(-dw/2-4,-dh/2+2,7,dh-4,1);ctx.fill();
+    ctx.fillStyle='rgba(255,255,200,0.25)';ctx.fillRect(-dw/2-4,-dh/2+2,3,dh-4);
+    ctx.fillStyle=dpg;
+    ctx.beginPath();ctx.roundRect(dw/2-3,-dh/2+2,7,dh-4,1);ctx.fill();
+    // Top gloss
+    ctx.fillStyle='rgba(255,255,255,0.07)';
+    ctx.fillRect(-dw/2+2,-dh/2+1,dw-12,4);
+    ctx.fillStyle='rgba(200,200,200,0.7)';ctx.font='bold 6px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.label,-3,0);
+    ctx.strokeStyle='rgba(100,100,80,0.4)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(-dw/2,-dh/2,dw,dh,2);ctx.stroke();
+
+  } else if(o.type==='inductor'){
+    var iw=28,ih=28;
+    compShadow(iw+6,ih+6,4);
+    // Ferrite body — dark, 3D-lit top face
+    var ig=ctx.createLinearGradient(-iw/2,-ih/2,-iw/2,ih/2);
+    ig.addColorStop(0,'#3a4038');ig.addColorStop(0.25,'#252820');
+    ig.addColorStop(0.7,'#181c14');ig.addColorStop(1,'#0e1008');
+    ctx.beginPath();ctx.roundRect(-iw/2,-ih/2,iw,ih,4);
+    ctx.fillStyle=ig;ctx.fill();
+    // Left bevel — lit
+    ctx.fillStyle='rgba(255,255,255,0.1)';
+    ctx.beginPath();ctx.roundRect(-iw/2,-ih/2,4,ih,4);ctx.fill();
+    // Bottom bevel — shadow
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    ctx.fillRect(-iw/2+3,ih/2-4,iw-6,4);
+    // Right shadow face (3D side)
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.fillRect(iw/2-3,-ih/2+4,3,ih-8);
+    // Inner recessed ring
+    ctx.strokeStyle='rgba(255,255,200,0.12)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(-iw/2+4,-ih/2+4,iw-8,ih-8,2);ctx.stroke();
+    // Dot mark (polarity)
+    var dotG=ctx.createRadialGradient(-iw/2+8,-ih/2+8,0,-iw/2+8,-ih/2+8,4);
+    dotG.addColorStop(0,'rgba(255,220,100,0.95)');dotG.addColorStop(1,'rgba(180,130,30,0.4)');
+    ctx.beginPath();ctx.arc(-iw/2+8,-ih/2+8,3.5,0,Math.PI*2);
+    ctx.fillStyle=dotG;ctx.fill();
+    // Top gloss streak
+    ctx.fillStyle='rgba(255,255,255,0.07)';
+    ctx.fillRect(-iw/2+3,-ih/2+1,iw-6,6);
+    ctx.fillStyle='rgba(200,210,180,0.7)';ctx.font='bold 6px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.label,0,2);
+    ctx.strokeStyle='rgba(60,70,50,0.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(-iw/2,-ih/2,iw,ih,4);ctx.stroke();
+
+  } else if(o.type==='crystal'){
+    // HC-49 crystal can — oval silver metallic body
+    var cw=14,ch=32;
+    compShadow(cw+6,ch+4,6);
+    // 3D side face (right)
+    var sideG=ctx.createLinearGradient(cw/2,0,cw/2+4,0);
+    sideG.addColorStop(0,'rgba(120,130,130,0.8)');sideG.addColorStop(1,'rgba(60,65,65,0.5)');
+    ctx.fillStyle=sideG;
+    ctx.beginPath();ctx.ellipse(cw/2+2,2,3,ch/2-2,0,0,Math.PI*2);ctx.fill();
+    // Main body — brushed silver oval
+    var bodyG=ctx.createLinearGradient(-cw/2,-ch/2,cw/2,-ch/2);
+    bodyG.addColorStop(0,'rgba(90,95,95,1)');
+    bodyG.addColorStop(0.15,'rgba(200,210,210,1)');
+    bodyG.addColorStop(0.4,'rgba(230,238,238,1)');
+    bodyG.addColorStop(0.6,'rgba(215,225,225,1)');
+    bodyG.addColorStop(0.82,'rgba(160,170,170,1)');
+    bodyG.addColorStop(1,'rgba(80,85,85,1)');
+    ctx.beginPath();ctx.ellipse(0,0,cw/2,ch/2,0,0,Math.PI*2);
+    ctx.fillStyle=bodyG;ctx.fill();
+    // Brushed texture lines
+    ctx.globalAlpha=0.08;ctx.strokeStyle='#ffffff';ctx.lineWidth=0.5;
+    for(var li=-ch/2+4;li<ch/2-4;li+=3){
+      var hw=Math.sqrt(Math.max(0,1-(li/(ch/2))*(li/(ch/2))))*(cw/2)*0.9;
+      ctx.beginPath();ctx.moveTo(-hw,li);ctx.lineTo(hw,li);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // Seam line down centre
+    ctx.strokeStyle='rgba(80,88,88,0.7)';ctx.lineWidth=0.7;
+    ctx.beginPath();ctx.moveTo(0,-ch/2+4);ctx.lineTo(0,ch/2-4);ctx.stroke();
+    // Top/bottom end caps — gold solder pins
+    [-1,1].forEach(function(dir){
+      var py=dir*(ch/2-2);
+      var eg=ctx.createLinearGradient(-6,py,6,py);
+      eg.addColorStop(0,'rgba(160,120,30,0.9)');
+      eg.addColorStop(0.4,'rgba(240,200,100,0.95)');
+      eg.addColorStop(1,'rgba(160,120,30,0.9)');
+      ctx.fillStyle=eg;ctx.fillRect(-5,py-dir*4,10,4*dir);
+      // Pin
+      ctx.fillStyle='rgba(180,140,50,0.8)';
+      ctx.fillRect(-2,py,4,dir*7);
+    });
+    // Laser mark
+    ctx.fillStyle='rgba(40,45,45,0.85)';ctx.font='bold 5px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(o.label,0,-5);
+    ctx.fillText('XTAL',0,3);
+    // Specular streak
+    var specG=ctx.createLinearGradient(-cw/2,-ch/4,cw/4,ch/4);
+    specG.addColorStop(0,'rgba(255,255,255,0.22)');specG.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=specG;
+    ctx.beginPath();ctx.ellipse(-1,-2,cw/2-2,ch/2-5,0,0,Math.PI*2);ctx.fill();
+    // Edge
+    ctx.strokeStyle='rgba(50,55,55,0.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(0,0,cw/2,ch/2,0,0,Math.PI*2);ctx.stroke();
+
+  } else if(o.type==='led'){
+    // 5mm through-hole LED — dome with colored lens
+    var lr=20;
+    var ledCol=o.ledColor||'#ff3333';
+    var ledColFade=o.ledColor?o.ledColor+'33':'rgba(255,50,50,0.2)';
+    compShadow(lr*2+4,lr*2+4,lr+2);
+    // Outer glow halo
+    var haloG=ctx.createRadialGradient(0,0,lr*0.6,0,0,lr*1.8);
+    haloG.addColorStop(0,ledColFade);haloG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath();ctx.arc(0,0,lr*1.8,0,Math.PI*2);
+    ctx.fillStyle=haloG;ctx.fill();
+    // Lead wires (silver)
+    ctx.strokeStyle='rgba(160,165,160,0.8)';ctx.lineWidth=1.5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-5,lr-2);ctx.lineTo(-5,lr+14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(5,lr-2);ctx.lineTo(5,lr+18);ctx.stroke();// cathode longer
+    ctx.lineCap='butt';
+    // Lens body — solid coloured dome
+    var lensG=ctx.createRadialGradient(-lr*0.28,-lr*0.28,1,0,0,lr);
+    lensG.addColorStop(0,'rgba(255,255,255,0.9)');
+    lensG.addColorStop(0.12,'rgba(255,255,255,0.55)');
+    lensG.addColorStop(0.35,ledCol);
+    lensG.addColorStop(0.7,ledCol);
+    lensG.addColorStop(1,'rgba(0,0,0,0.6)');
+    ctx.beginPath();ctx.arc(0,0,lr,0,Math.PI*2);
+    ctx.fillStyle=lensG;ctx.fill();
+    // Flat base ring
+    ctx.strokeStyle='rgba(80,80,80,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(0,0,lr,0,Math.PI*2);ctx.stroke();
+    // Inner die (tiny bright square inside)
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.fillRect(-3,-3,6,6);
+    // Bond wires (hair-thin lines from die)
+    ctx.strokeStyle='rgba(255,255,200,0.4)';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(-1,-1);ctx.lineTo(-8,-8);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(1,-1);ctx.lineTo(8,-8);ctx.stroke();
+    // Specular cap highlight
+    var capG=ctx.createRadialGradient(-lr*0.3,-lr*0.32,0,-lr*0.3,-lr*0.32,lr*0.5);
+    capG.addColorStop(0,'rgba(255,255,255,0.6)');capG.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.beginPath();ctx.arc(0,0,lr,0,Math.PI*2);
+    ctx.fillStyle=capG;ctx.fill();
+    // Flat edge
+    ctx.strokeStyle='rgba(30,30,30,0.5)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.arc(0,0,lr,0,Math.PI*2);ctx.stroke();
+
+  } else if(o.type==='transformer'){
+    // EE-core power transformer — large, 3D
+    var tw=50,th=44;
+    compShadow(tw+8,th+8,3);
+    // ── Ferrite E-core base (dark grey) ──
+    var coreG=ctx.createLinearGradient(-tw/2,-th/2,-tw/2,th/2);
+    coreG.addColorStop(0,'#3c3c3c');coreG.addColorStop(0.3,'#282828');
+    coreG.addColorStop(0.8,'#1a1a1a');coreG.addColorStop(1,'#0e0e0e');
+    // Side extrusion faces
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(-tw/2+3,th/2-th/2,tw-4,6); // bottom face
+    ctx.fillRect(tw/2-4,-th/2+3,5,th-6);    // right face
+    // Main core body
+    ctx.beginPath();ctx.roundRect(-tw/2,-th/2,tw,th,3);
+    ctx.fillStyle=coreG;ctx.fill();
+    // Left lit bevel
+    var litBev2=ctx.createLinearGradient(-tw/2,0,-tw/2+5,0);
+    litBev2.addColorStop(0,'rgba(255,255,255,0.12)');litBev2.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=litBev2;ctx.beginPath();ctx.roundRect(-tw/2,-th/2,5,th,3);ctx.fill();
+    // ── Winding windows (the gaps in the E-core) ──
+    [[-tw/4,0],[tw/4,0]].forEach(function(wc){
+      // Winding window recess
+      ctx.fillStyle='#0a0a0a';
+      ctx.fillRect(wc[0]-8,-th/2+5,16,th-10);
+      // Copper winding layers
+      var windings=['#c8780a','#d48a14','#b86a08','#c87810','#d49020'];
+      windings.forEach(function(col,wi){
+        ctx.fillStyle=col;
+        ctx.fillRect(wc[0]-7,-th/2+6+wi*5,14,4);
+        // Wire sheen
+        ctx.fillStyle='rgba(255,200,100,0.2)';
+        ctx.fillRect(wc[0]-7,-th/2+6+wi*5,14,1.5);
+        // Wire shadow
+        ctx.fillStyle='rgba(0,0,0,0.3)';
+        ctx.fillRect(wc[0]-7,-th/2+9+wi*5,14,1);
+      });
+      // Window depth shadow
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.fillRect(wc[0]-8,-th/2+5,2,th-10);
+      ctx.fillRect(wc[0]+6,-th/2+5,2,th-10);
+    });
+    // Centre leg of E-core
+    ctx.fillStyle='#222';
+    ctx.fillRect(-5,-th/2+4,10,th-8);
+    var clitG=ctx.createLinearGradient(-5,0,5,0);
+    clitG.addColorStop(0,'rgba(255,255,255,0.06)');clitG.addColorStop(0.5,'rgba(255,255,255,0.12)');clitG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=clitG;ctx.fillRect(-5,-th/2+4,10,th-8);
+    // Top gloss
+    ctx.fillStyle='rgba(255,255,255,0.06)';
+    ctx.fillRect(-tw/2+3,-th/2+1,tw-6,5);
+    // Label on core
+    ctx.fillStyle='rgba(200,200,200,0.55)';ctx.font='bold 6px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.label,0,0);
+    // Outer edge
+    ctx.strokeStyle='rgba(15,15,15,0.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(-tw/2,-th/2,tw,th,3);ctx.stroke();
+
+  } else if(o.type==='connector'){
+    // 4-pin SMD connector — black housing, gold pins
+    var np=4,pinSpacing=10,pw2=np*pinSpacing+8,ph2=22;
+    compShadow(pw2+6,ph2+6,2);
+    // Housing 3D side face
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.fillRect(-pw2/2+2,ph2/2-ph2/2,pw2-2,5);
+    ctx.fillRect(pw2/2-2,-ph2/2+2,4,ph2-4);
+    // Main housing body
+    var hG=ctx.createLinearGradient(-pw2/2,-ph2/2,-pw2/2,ph2/2);
+    hG.addColorStop(0,'#383838');hG.addColorStop(0.2,'#2a2a2a');
+    hG.addColorStop(0.75,'#1c1c1c');hG.addColorStop(1,'#101010');
+    ctx.beginPath();ctx.roundRect(-pw2/2,-ph2/2,pw2,ph2,2);
+    ctx.fillStyle=hG;ctx.fill();
+    // Lit top bevel
+    ctx.fillStyle='rgba(255,255,255,0.08)';
+    ctx.fillRect(-pw2/2+2,-ph2/2+1,pw2-4,3);
+    // Pin cavities + gold pins
+    for(var pi=0;pi<np;pi++){
+      var px2=(pi-(np-1)/2)*pinSpacing;
+      // Pin cavity (dark recess)
+      ctx.fillStyle='#080808';
+      ctx.fillRect(px2-3,-ph2/2+5,6,ph2-8);
+      // Inner shadow
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(px2-3,-ph2/2+5,1,ph2-8);
+      // Gold pin
+      var pinG=ctx.createLinearGradient(px2-2,0,px2+2,0);
+      pinG.addColorStop(0,'rgba(180,135,35,0.9)');
+      pinG.addColorStop(0.35,'rgba(248,210,100,0.95)');
+      pinG.addColorStop(0.65,'rgba(235,190,75,0.9)');
+      pinG.addColorStop(1,'rgba(155,110,25,0.85)');
+      ctx.fillStyle=pinG;
+      ctx.fillRect(px2-2,-ph2/2+6,4,ph2-10);
+      // Pin sheen
+      ctx.fillStyle='rgba(255,240,160,0.25)';
+      ctx.fillRect(px2-2,-ph2/2+6,1.5,ph2-10);
+      // SMD foot (extends below housing)
+      ctx.fillStyle=pinG;ctx.fillRect(px2-2,ph2/2-2,4,6);
+    }
+    // Retention clips (grey nubs on sides)
+    [-pw2/2-3,pw2/2-1].forEach(function(cx2){
+      ctx.fillStyle='#303030';ctx.fillRect(cx2,-4,4,8);
+      ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fillRect(cx2,-4,2,8);
+    });
+    // Polarisation key (notch)
+    ctx.fillStyle='#080808';ctx.fillRect(-3,-ph2/2-1,6,4);
+    // Label
+    ctx.fillStyle='rgba(180,185,180,0.55)';ctx.font='bold 5px monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(o.label,-pw2/4,-ph2/2+1);
+    // Edge
+    ctx.strokeStyle='rgba(8,8,8,0.9)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(-pw2/2,-ph2/2,pw2,ph2,2);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawChipAt(c,col,row,isGhost,ghostOk){
+  var x=col*TILE,y=row*TILE,w=c.w*TILE,h=c.h*TILE,BM=7;
+  ctx.save();
+  if(isGhost)ctx.globalAlpha=ghostOk?.48:.15;
+
+  // ── Drop shadow (cast onto PCB) ──
+  if(!isGhost){
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,0.65)';ctx.shadowBlur=10;
+    ctx.shadowOffsetX=4;ctx.shadowOffsetY=6;
+    ctx.fillStyle='rgba(0,0,0,0)';
+    ctx.beginPath();ctx.roundRect(x+BM,y+BM,w-BM*2,h-BM*2,5);ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Solder pads (ENIG gold) + lead fingers ──
+  var proxy={id:c.id,col:col,row:row,w:c.w,h:c.h,sides:c.sides,label:c.label};
+  for(var si=0;si<SIDES.length;si++){
+    var side=SIDES[si],n=c.sides[side];
+    for(var i=0;i<n;i++){
+      var pc=pinColors[c.id+'|'+side+'|'+i];
+      if(!pc)continue;
+      var pp=pinPx(proxy,side,i);
+      var isH=(side==='left'||side==='right');
+      var pw=isH?12:9,ph=isH?9:12;
+      // Pad shadow
+      ctx.fillStyle='rgba(0,0,0,0.35)';
+      ctx.fillRect(pp.x-pw/2+1.5,pp.y-ph/2+2,pw,ph);
+      // Copper base
+      ctx.fillStyle='#a07828';
+      ctx.fillRect(pp.x-pw/2,pp.y-ph/2,pw,ph);
+      // ENIG gold gradient on pad
+      var padG=ctx.createLinearGradient(pp.x-pw/2,pp.y-ph/2,pp.x-pw/2,pp.y+ph/2);
+      padG.addColorStop(0,'rgba(255,235,130,0.9)');
+      padG.addColorStop(0.45,'rgba(212,168,67,0.85)');
+      padG.addColorStop(1,'rgba(155,105,25,0.8)');
+      ctx.fillStyle=padG;ctx.fillRect(pp.x-pw/2,pp.y-ph/2,pw,ph);
+      // Wire color tint
+      ctx.fillStyle=pc+'44';ctx.fillRect(pp.x-pw/2+1,pp.y-ph/2+1,pw-2,ph-2);
+      // Pad outline
+      ctx.strokeStyle='rgba(100,70,10,0.6)';ctx.lineWidth=0.7;
+      ctx.strokeRect(pp.x-pw/2,pp.y-ph/2,pw,ph);
+      // Lead line (gull-wing style: tapers into body)
+      var lg=ctx.createLinearGradient(pp.x,pp.y,
+        side==='left'?x+BM:side==='right'?x+w-BM:pp.x,
+        side==='top'?y+BM:side==='bottom'?y+h-BM:pp.y);
+      lg.addColorStop(0,'#c0a840');lg.addColorStop(1,'rgba(100,80,20,0.3)');
+      ctx.strokeStyle=lg;ctx.lineWidth=2.5;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(pp.x,pp.y);
+      if(side==='left')   ctx.lineTo(x+BM,  pp.y);
+      if(side==='right')  ctx.lineTo(x+w-BM,pp.y);
+      if(side==='top')    ctx.lineTo(pp.x,  y+BM);
+      if(side==='bottom') ctx.lineTo(pp.x,  y+h-BM);
+      ctx.stroke();ctx.lineCap='butt';
+    }
+  }
+
+  // ── IC body ──
+  // Side faces (3D extrusion, bottom-right darker)
+  var depth=4;
+  if(!isGhost){
+    // Right face
+    ctx.fillStyle='rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(x+w-BM,y+BM+4);ctx.lineTo(x+w-BM+depth,y+BM+4+depth);
+    ctx.lineTo(x+w-BM+depth,y+h-BM+depth);ctx.lineTo(x+w-BM,y+h-BM);
+    ctx.fill();
+    // Bottom face
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.moveTo(x+BM+4,y+h-BM);ctx.lineTo(x+BM+4+depth,y+h-BM+depth);
+    ctx.lineTo(x+w-BM+depth,y+h-BM+depth);ctx.lineTo(x+w-BM,y+h-BM);
+    ctx.fill();
+  }
+
+  // Top face — epoxy mold, gradient lit top-left
+  var topG=ctx.createLinearGradient(x+BM,y+BM,x+w-BM,y+h-BM);
+  if(isGhost){
+    topG.addColorStop(0,ghostOk?'#243824':'#382424');
+    topG.addColorStop(1,ghostOk?'#101810':'#180e0e');
+  } else {
+    topG.addColorStop(0,'#2a3028');
+    topG.addColorStop(0.35,'#181c16');
+    topG.addColorStop(0.8,'#111310');
+    topG.addColorStop(1,'#0a0c08');
+  }
+  ctx.beginPath();ctx.roundRect(x+BM,y+BM,w-BM*2,h-BM*2,5);
+  ctx.fillStyle=topG;ctx.fill();
+
+  // Left bevel — lit edge
+  var litBev=ctx.createLinearGradient(x+BM,0,x+BM+5,0);
+  litBev.addColorStop(0,'rgba(255,255,255,0.13)');litBev.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=litBev;
+  ctx.beginPath();ctx.roundRect(x+BM,y+BM,5,h-BM*2,5);ctx.fill();
+  // Top bevel — lit
+  var litTop=ctx.createLinearGradient(0,y+BM,0,y+BM+5);
+  litTop.addColorStop(0,'rgba(255,255,255,0.1)');litTop.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=litTop;
+  ctx.beginPath();ctx.roundRect(x+BM,y+BM,w-BM*2,5,5);ctx.fill();
+  // Bottom-right inner shadow
+  var innerSh=ctx.createLinearGradient(x+w-BM,y+h-BM,x+w-BM-12,y+h-BM-12);
+  innerSh.addColorStop(0,'rgba(0,0,0,0.35)');innerSh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=innerSh;
+  ctx.beginPath();ctx.roundRect(x+BM,y+BM,w-BM*2,h-BM*2,5);ctx.fill();
+
+  // Outer edge stroke
+  ctx.strokeStyle=isGhost?(ghostOk?'#3a5038':'#503838'):'#303530';
+  ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.roundRect(x+BM,y+BM,w-BM*2,h-BM*2,5);ctx.stroke();
+
+  // ── Pin 1 dot (polished gold) ──
+  var p1g=ctx.createRadialGradient(x+BM+9,y+BM+9,0,x+BM+9,y+BM+9,4);
+  p1g.addColorStop(0,'rgba(255,238,140,0.9)');p1g.addColorStop(1,'rgba(160,110,20,0.4)');
+  ctx.beginPath();ctx.arc(x+BM+9,y+BM+9,3.5,0,Math.PI*2);
+  ctx.fillStyle=isGhost?'rgba(180,200,160,0.3)':p1g;ctx.fill();
+
+  // Notch on top edge
+  ctx.fillStyle=isGhost?'rgba(0,0,0,0.3)':'#080c08';
+  ctx.beginPath();ctx.arc(x+w/2,y+BM,5,Math.PI,0);ctx.fill();
+  ctx.strokeStyle='rgba(60,80,50,0.5)';ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.arc(x+w/2,y+BM,5,Math.PI,0);ctx.stroke();
+
+  // ── Silkscreen label ──
+  var fs=Math.max(7,Math.min(11,(w-BM*2-6)/c.label.length*1.4));
+  // Subtle label shadow
+  ctx.fillStyle='rgba(0,0,0,0.7)';
+  ctx.font='bold '+fs+'px Share Tech Mono,monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(c.label,x+w/2+0.7,y+h/2+2.7);
+  // Label
+  ctx.fillStyle=isGhost?(ghostOk?'rgba(180,220,160,0.55)':'rgba(220,160,160,0.35)'):'rgba(215,228,195,0.9)';
+  ctx.fillText(c.label,x+w/2,y+h/2+2);
+  // Part ref
+  ctx.fillStyle='rgba(130,150,110,0.45)';
+  ctx.font='5px Share Tech Mono,monospace';
+  ctx.fillText(c.id,x+w/2,y+h/2-fs/2-3);
+
+  ctx.restore();
+}
+
+function drawWire(w,hilight,pts){
+  if(!pts||pts.length<2)return;
+  ctx.save();ctx.lineCap='square';ctx.lineJoin='miter';
+
+  function tracePath(){
+    ctx.beginPath();
+    for(var i=0;i<pts.length;i++){
+      if(i===0)ctx.moveTo(pts[i].x,pts[i].y);else ctx.lineTo(pts[i].x,pts[i].y);
+    }
+  }
+
+  if(hilight){
+    // Violated trace: bright color glow + thick highlight
+    ctx.strokeStyle=w.color;ctx.lineWidth=10;ctx.globalAlpha=0.25;
+    ctx.shadowColor=w.color;ctx.shadowBlur=16;
+    tracePath();ctx.stroke();
+    ctx.lineWidth=4;ctx.globalAlpha=0.9;ctx.shadowBlur=4;
+    tracePath();ctx.stroke();
+  } else {
+    // Normal PCB copper trace — flat, no glow
+    // Shadow/depth layer
+    ctx.strokeStyle='#060e06';ctx.lineWidth=5;ctx.globalAlpha=0.6;
+    tracePath();ctx.stroke();
+    // Copper trace body
+    ctx.strokeStyle=w.color;ctx.lineWidth=3.5;ctx.globalAlpha=0.75;
+    ctx.shadowBlur=0;
+    tracePath();ctx.stroke();
+    // ENIG gold surface — warm highlight + sharper specular
+    ctx.strokeStyle='rgba(255,228,100,0.28)';ctx.lineWidth=1.8;ctx.globalAlpha=0.9;
+    tracePath();ctx.stroke();
+    // Specular highlight (top edge of trace)
+    ctx.strokeStyle='rgba(255,248,200,0.14)';ctx.lineWidth=0.7;ctx.globalAlpha=1;
+    tracePath();ctx.stroke();
+  }
+
+  // Via pads at endpoints and corners — ENIG gold plated
+  ctx.shadowBlur=0;
+  for(var i=0;i<pts.length;i++){
+    var isEndpoint=(i===0||i===pts.length-1);
+    var r=isEndpoint?5.5:3.5;
+    var px=pts[i].x,py=pts[i].y;
+    // Copper base
+    ctx.beginPath();ctx.arc(px,py,r+1.5,0,Math.PI*2);
+    ctx.fillStyle='#a07020';ctx.globalAlpha=hilight?1:0.8;ctx.fill();
+    // ENIG gold radial gradient
+    var vg2=ctx.createRadialGradient(px-r*0.4,py-r*0.4,0,px,py,r+1.5);
+    vg2.addColorStop(0,'rgba(255,238,140,0.95)');
+    vg2.addColorStop(0.45,'rgba(212,168,67,0.9)');
+    vg2.addColorStop(0.85,'rgba(160,110,30,0.75)');
+    vg2.addColorStop(1,'rgba(100,65,10,0.5)');
+    ctx.beginPath();ctx.arc(px,py,r+1.5,0,Math.PI*2);
+    ctx.fillStyle=vg2;ctx.globalAlpha=1;ctx.fill();
+    ctx.strokeStyle='rgba(80,45,5,0.6)';ctx.lineWidth=0.5;ctx.stroke();
+    // Drill
+    ctx.beginPath();ctx.arc(px,py,r*0.38,0,Math.PI*2);
+    ctx.fillStyle='#080e08';ctx.globalAlpha=1;ctx.fill();
+  }
+
+  ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.restore();
+}
+
+function drawXings(xings){
+  var t=Date.now()/600;
+  for(var ci=0;ci<xings.length;ci++){
+    var cr=xings[ci];
+    var pulse=0.7+Math.sin(t+ci)*0.3;
+    var col=cr.type==='obs'?'#ff8800':cr.type==='chip'?'#ffcc00':'#ff2222';
+    var r=7;
+    ctx.save();
+    // DRC error marker — PCB design rule check style
+    ctx.globalAlpha=pulse*0.9;
+    ctx.strokeStyle=col;ctx.lineWidth=2;
+    ctx.shadowColor=col;ctx.shadowBlur=8;
+    // Circle marker
+    ctx.beginPath();ctx.arc(cr.x,cr.y,r,0,Math.PI*2);ctx.stroke();
+    // X inside
+    var d=r*0.6;
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(cr.x-d,cr.y-d);ctx.lineTo(cr.x+d,cr.y+d);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cr.x+d,cr.y-d);ctx.lineTo(cr.x-d,cr.y+d);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+let winParts=[];
+function spawnWin(){
+  var cols=['#76b900','#d4a843','#b87333','#c8d8b0','#ffffff'];
+  winParts=Array.from({length:70},function(){return{
+    x:Math.random()*CW,y:Math.random()*CH,
+    vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6-2,
+    life:1,decay:.005+Math.random()*.01,r:Math.random()*4+1.5,
+    color:cols[Math.floor(Math.random()*cols.length)]};});
+}
+function drawWin(){
+  winParts=winParts.filter(function(p){return p.life>0;});
+  for(const p of winParts){
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.06;p.life-=p.decay;
+    ctx.save();ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=10;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+let rafId=null;
+function render(){
+  rafId=null;
+  ctx.clearRect(0,0,CW,CH);
+  drawBg();
+  const chipOv=drag
+    ?{id:drag.cid,col:(drag.curX-drag.offPxX)/TILE,row:(drag.curY-drag.offPxY)/TILE,
+       w:gchip(drag.cid).w,h:gchip(drag.cid).h,
+       sides:gchip(drag.cid).sides,label:gchip(drag.cid).label}
+    :null;
+  const routes=getRoutes(chipOv);
+  const crossedSet=new Set();
+  for(const c of liveCrossings){crossedSet.add(c.w1);crossedSet.add(c.w2);}
+  for(const w of wires)drawWire(w,crossedSet.has(w.id),routes.get(w.id));
+  for(const o of obstacles)drawObs(o);
+  for(const c of chips){
+    if(drag&&c.id===drag.cid)continue;
+    drawChipAt(c,c.col,c.row,false,false);
+  }
+  if(drag){
+    const c=gchip(drag.cid);
+    drawChipAt(c,(drag.curX-drag.offPxX)/TILE,(drag.curY-drag.offPxY)/TILE,false,false);
+  }
+  // Recompute violations from current float drag position so markers follow wires exactly
+  var frameViols = drag ? computeViolations(chipOv) : liveCrossings;
+  if(!solved)drawXings(frameViols);
+  if(winParts.length>0)drawWin();
+  if(liveCrossings.length>0||winParts.length>0||drag||animating)
+    rafId=requestAnimationFrame(render);
+}
+function kick(){if(!rafId)rafId=requestAnimationFrame(render);}
+
+function evXY(e){
+  const r=canvas.getBoundingClientRect(),sc=CW/r.width;
+  const s=e.touches?e.touches[0]:e;
+  return{x:(s.clientX-r.left)*sc,y:(s.clientY-r.top)*sc};
+}
+function chipAt(x,y){
+  for(let i=chips.length-1;i>=0;i--){
+    const c=chips[i];
+    if(x>=c.col*TILE&&x<(c.col+c.w)*TILE&&y>=c.row*TILE&&y<(c.row+c.h)*TILE)return c;
+  }
+  return null;
+}
+function snapCell(curX,curY){
+  return{col:Math.round((curX-drag.offPxX)/TILE),row:Math.round((curY-drag.offPxY)/TILE)};
+}
+
+
+// ── Web Audio: chip slide sound (Unblock Me style) ──────────
+const _audioCtx=(function(){
+  try{return new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}
+})();
+
+function _playSlide(intensity){
+  if(!_audioCtx)return;
+  if(_audioCtx.state==='suspended')_audioCtx.resume();
+  const t=_audioCtx.currentTime;
+  const buf=_audioCtx.createBuffer(1,_audioCtx.sampleRate*0.06,_audioCtx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(var i=0;i<data.length;i++){
+    var n=(Math.random()*2-1);
+    var t2=i/data.length;
+    var lowFreq=Math.sin(2*Math.PI*180*i/_audioCtx.sampleRate)*0.4;
+    var hiFreq=n*Math.sin(2*Math.PI*3200*i/_audioCtx.sampleRate)*0.3;
+    var env=Math.exp(-t2*18)*(1-Math.exp(-t2*120));
+    data[i]=(lowFreq+hiFreq+n*0.15)*env;
+  }
+  const src=_audioCtx.createBufferSource();
+  src.buffer=buf;
+  src.playbackRate.value=0.85+intensity*0.35;
+  const bpf=_audioCtx.createBiquadFilter();
+  bpf.type='bandpass';bpf.frequency.value=420+intensity*280;bpf.Q.value=1.8;
+  const gain=_audioCtx.createGain();
+  gain.gain.setValueAtTime(0.38,t);
+  gain.gain.exponentialRampToValueAtTime(0.001,t+0.055);
+  src.connect(bpf);bpf.connect(gain);gain.connect(_audioCtx.destination);
+  src.start(t);src.stop(t+0.06);
+}
+
+function _playDrop(){
+  if(!_audioCtx)return;
+  if(_audioCtx.state==='suspended')_audioCtx.resume();
+  const t=_audioCtx.currentTime;
+  const osc=_audioCtx.createOscillator();
+  osc.type='sine';
+  osc.frequency.setValueAtTime(320,t);
+  osc.frequency.exponentialRampToValueAtTime(95,t+0.07);
+  const gain=_audioCtx.createGain();
+  gain.gain.setValueAtTime(0.28,t);
+  gain.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+  osc.connect(gain);gain.connect(_audioCtx.destination);
+  osc.start(t);osc.stop(t+0.08);
+}
+
+// Track last snapped cell to only fire sound on cell change
+var _lastSoundCell={col:-1,row:-1};
+
+function onDown(e){
+  if(animating)return;e.preventDefault();
+  const p=evXY(e),c=chipAt(p.x,p.y);if(!c)return;
+  drag={cid:c.id,offPxX:p.x-c.col*TILE,offPxY:p.y-c.row*TILE,curX:p.x,curY:p.y};
+  ghost={col:c.col,row:c.row,valid:true};
+  _lastSoundCell={col:c.col,row:c.row};
+  kick();
+}
+function onMove(e){
+  if(!drag)return;e.preventDefault();
+  const p=evXY(e);drag.curX=p.x;drag.curY=p.y;
+  const sn=snapCell(p.x,p.y);
+  ghost={col:sn.col,row:sn.row,valid:canPlace(drag.cid,sn.col,sn.row)};
+  // Fire slide sound each time chip crosses a new cell boundary
+  if(sn.col!==_lastSoundCell.col||sn.row!==_lastSoundCell.row){
+    var dx=Math.abs(sn.col-_lastSoundCell.col),dy=Math.abs(sn.row-_lastSoundCell.row);
+    var intensity=Math.min(1,(dx+dy)/3);
+    _playSlide(intensity);
+    _lastSoundCell={col:sn.col,row:sn.row};
+  }
+  // Recompute violations from exact float position every move event
+  const c=gchip(drag.cid);
+  const chipOv={id:drag.cid,col:(p.x-drag.offPxX)/TILE,row:(p.y-drag.offPxY)/TILE,
+    w:c.w,h:c.h,sides:c.sides,label:c.label};
+  liveCrossings=computeViolations(chipOv);
+  updateBadge(liveCrossings.length);
+  kick();
+}
+function commitDrop(){
+  if(!drag)return;
+  const sn=snapCell(drag.curX,drag.curY);
+  const c=gchip(drag.cid);
+  const moved=canPlace(drag.cid,sn.col,sn.row)&&(sn.col!==c.col||sn.row!==c.row);
+  if(moved){c.col=sn.col;c.row=sn.row;_playDrop();}
+  drag=null;ghost=null;
+  invalidateCache();
+  liveCrossings=computeViolations(null);
+  updateBadge(liveCrossings.length);
+  // Only check for win if the chip actually landed somewhere new
+  if(moved)checkSolve();
+  kick();
+}
+function onUp(e){if(!drag)return;e.preventDefault();commitDrop();}
+addEventListener('mouseup',function(){if(drag)commitDrop();});
+addEventListener('touchcancel',function(){if(drag)commitDrop();});
+canvas.addEventListener('mousedown',onDown,{passive:false});
+canvas.addEventListener('mousemove',onMove,{passive:false});
+canvas.addEventListener('mouseup',onUp,{passive:false});
+canvas.addEventListener('touchstart',onDown,{passive:false});
+canvas.addEventListener('touchmove',onMove,{passive:false});
+canvas.addEventListener('touchend',onUp,{passive:false});
+
+document.getElementById('solveBtn').addEventListener('click',function(){
+  if(animating)return;
+  animating=true;solved=false;
+  chips=dc(LEVELS[lvlIdx].chips);invalidateCache();
+  const steps=Object.entries(LEVELS[lvlIdx].solution);
+  let si=0;
+  function doStep(){
+    if(si>=steps.length){
+      animating=false;liveCrossings=computeViolations(null);
+      updateBadge(liveCrossings.length);checkSolve();kick();return;
+    }
+    const step=steps[si++],cid=step[0],ec=step[1].col,er=step[1].row;
+    const c=gchip(cid);if(!c){doStep();return;}
+    const sc0=c.col,sr0=c.row,F=22;let f=0;kick();
+    function frame(){
+      f++;c.col=sc0+(ec-sc0)*(f/F);c.row=sr0+(er-sr0)*(f/F);
+      liveCrossings=computeViolations(null);updateBadge(liveCrossings.length);kick();
+      if(f<F){animTimer=setTimeout(frame,18);}
+      else{c.col=ec;c.row=er;invalidateCache();
+        liveCrossings=computeViolations(null);updateBadge(liveCrossings.length);
+        animTimer=setTimeout(doStep,350);}
+    }
+    frame();
+  }
+  doStep();
+});
+
+document.getElementById('resetBtn').addEventListener('click',function(){
+  if(animTimer){clearTimeout(animTimer);animTimer=null;}
+  loadLevel(lvlIdx);
+});
+
+
+
+loadLevel(0);
+
+</script>
+
+</body>
+</html>
