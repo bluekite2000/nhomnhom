@@ -329,11 +329,12 @@ function getMaster() {
   }
   return _masterBus;
 }
-// iOS unlocks WebAudio only on a full gesture (touchend/click) — touchstart,
-// pointerdown and swipe-moves don't count. Since kicks fire mid-swipe, prime
-// the context on the first qualifying gesture or round 1 plays silent on iPhone.
+// Prime/unlock WebAudio on the FIRST gesture event. A kick fires mid-swipe (on
+// touchmove), so we must unlock on touchstart/pointerdown — by touchend it's too
+// late and round 1 plays into a suspended context (silent on iPhone). Creating
+// the context inside a touchstart handler starts it running on iOS.
 (function () {
-  const evs = ['touchend', 'pointerup', 'click', 'keydown'];
+  const evs = ['touchstart', 'pointerdown', 'touchend', 'pointerup', 'click', 'keydown'];
   function unlock() {
     try {
       const a = getAC();
