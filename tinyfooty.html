@@ -1583,9 +1583,32 @@ const SPIN_AXES = {
 };
 
 function playKickSound() {
+  const ac = getAC();
+  if (!ac) return;
+  // Strict iOS unlocks audio only on touchend/click, but the kick fires mid-swipe
+  // (before this swipe's touchend). If the context isn't running yet, resume it
+  // and replay the kick the instant it unlocks (when the finger lifts) — otherwise
+  // the very first kick of the session plays into a frozen clock and is silent.
+  if (ac.state !== 'running') {
+    try { ac.resume(); } catch (e) {}
+    if (!ac._kickPending) {
+      ac._kickPending = true;
+      const onRun = () => {
+        if (ac.state === 'running') {
+          ac.removeEventListener('statechange', onRun);
+          ac._kickPending = false;
+          _emitKickSound(ac);
+        }
+      };
+      ac.addEventListener('statechange', onRun);
+    }
+    return;
+  }
+  _emitKickSound(ac);
+}
+
+function _emitKickSound(ac) {
   try {
-    const ac = getAC();
-    if (!ac) return;
     const t = ac.currentTime;
 
     // Sharp leather thwack — short noise burst with mid-forward bandpass
