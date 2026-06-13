@@ -329,6 +329,19 @@ function getMaster() {
   }
   return _masterBus;
 }
+// iOS unlocks WebAudio only on a full gesture (touchend/click) — touchstart,
+// pointerdown and swipe-moves don't count. Since kicks fire mid-swipe, prime
+// the context on the first qualifying gesture or round 1 plays silent on iPhone.
+(function () {
+  const evs = ['touchend', 'pointerup', 'click', 'keydown'];
+  function unlock() {
+    try {
+      const a = getAC();
+      if (a.state === 'running') { evs.forEach(ev => document.removeEventListener(ev, unlock, true)); }
+    } catch (e) {}
+  }
+  evs.forEach(ev => document.addEventListener(ev, unlock, true));
+})();
 function playGoalSound() {
   try {
     const ac = getAC();

@@ -878,6 +878,19 @@ function getMaster(){
   return _master;
 }
 
+// iOS unlocks WebAudio only on touchend/click — board taps resolve on
+// touchend but rod drags start sounds earlier, so prime on first gesture.
+(function(){
+  const evs=['touchend','pointerup','click','keydown'];
+  function unlock(){
+    try{
+      const a=getAudio();
+      if(a.state==='running') evs.forEach(ev=>document.removeEventListener(ev,unlock,true));
+    }catch(e){}
+  }
+  evs.forEach(ev=>document.addEventListener(ev,unlock,true));
+})();
+
 function playVanish(){
   try{
     const ac=getAudio();

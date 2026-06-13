@@ -450,6 +450,19 @@ function getAC() {
   return ac;
 }
 
+// iOS unlocks WebAudio only on touchend/click — the intro pads fire on
+// touchstart, which doesn't count, so prime on the first qualifying gesture.
+(function(){
+  const evs=['touchend','pointerup','click','keydown'];
+  function unlock(){
+    try{
+      const a=getAC();
+      if(a.state==='running') evs.forEach(ev=>document.removeEventListener(ev,unlock,true));
+    }catch(e){}
+  }
+  evs.forEach(ev=>document.addEventListener(ev,unlock,true));
+})();
+
 let _limiter = null;
 function getMaster() {
   getAC();

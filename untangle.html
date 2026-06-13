@@ -2458,6 +2458,24 @@ const _audioCtx=(function(){
   try{return new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}
 })();
 
+// The context above is created at load (outside any gesture) so iOS starts it
+// suspended; drag sounds fire on touchstart/move which never unlock it.
+// Resume on the first touchend/click so level 1 isn't silent on iPhone.
+(function(){
+  if(!_audioCtx)return;
+  var evs=['touchend','pointerup','click','keydown'];
+  function unlock(){
+    try{
+      if(_audioCtx.state==='running'){
+        evs.forEach(function(ev){document.removeEventListener(ev,unlock,true);});
+      } else {
+        _audioCtx.resume();
+      }
+    }catch(e){}
+  }
+  evs.forEach(function(ev){document.addEventListener(ev,unlock,true);});
+})();
+
 // Single limiter bus — sounds stack cleanly without clipping
 var _masterBus=null;
 function _master(){
