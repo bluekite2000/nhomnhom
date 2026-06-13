@@ -1606,25 +1606,10 @@ const SPIN_AXES = {
 function playKickSound() {
   const ac = getAC();
   if (!ac) return;
-  // Strict iOS unlocks audio only on touchend/click, but the kick fires mid-swipe
-  // (before this swipe's touchend). If the context isn't running yet, resume it
-  // and replay the kick the instant it unlocks (when the finger lifts) — otherwise
-  // the very first kick of the session plays into a frozen clock and is silent.
-  if (ac.state !== 'running') {
-    try { ac.resume(); } catch (e) {}
-    if (!ac._kickPending) {
-      ac._kickPending = true;
-      const onRun = () => {
-        if (ac.state === 'running') {
-          ac.removeEventListener('statechange', onRun);
-          ac._kickPending = false;
-          _emitKickSound(ac);
-        }
-      };
-      ac.addEventListener('statechange', onRun);
-    }
-    return;
-  }
+  // Audio is unlocked up front by the tap-to-start gate, so the context is
+  // running here. (No statechange deferral — that made a held kick fire later
+  // when the back button unlocked audio, so the back arrow "played" a kick.)
+  if (ac.state === 'suspended') { try { ac.resume(); } catch (e) {} }
   _emitKickSound(ac);
 }
 
