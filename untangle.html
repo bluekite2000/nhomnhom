@@ -1370,10 +1370,10 @@ function canPlace(cid,col,row){
 
 function checkSolve(){
   if(liveCrossings.length===0&&!solved){
-    solved=true;cleared[lvlIdx]=true;renderStars();spawnWin();_playSolve();
+    solved=true;cleared[lvlIdx]=true;renderStars();spawnWin();
     // Auto-advance to next level after a short delay
     if(lvlIdx+1<LEVELS.length){
-      setTimeout(function(){loadLevel(lvlIdx+1);},1400);
+      setTimeout(function(){loadLevel(lvlIdx+1);},2200);
     }
   }
 }
@@ -1502,10 +1502,8 @@ var _pcbCanvas=null;
 
 function buildPCBCanvas(){
   var oc=document.createElement('canvas');
-  // Render at device resolution so the texture stays crisp on retina
-  oc.width=CW*DPR;oc.height=CH*DPR;
+  oc.width=CW;oc.height=CH;
   var c=oc.getContext('2d');
-  c.scale(DPR,DPR);
 
   // ── 1. FR4 substrate base ─────────────────────────────────
   // Deep green solder mask with slight blue tint
@@ -1759,7 +1757,7 @@ function buildPCBCanvas(){
 
 function drawBg(){
   if(!_pcbCanvas) _pcbCanvas=buildPCBCanvas();
-  ctx.drawImage(_pcbCanvas,0,0,CW,CH);
+  ctx.drawImage(_pcbCanvas,0,0);
 
   // ── Level label — drawn live (changes per level) ─────────
   var L=LEVELS[lvlIdx];
@@ -2318,41 +2316,30 @@ function drawWire(w,hilight,pts){
     tracePath();ctx.stroke();
   }
 
-  // Via pads at endpoints and corners — pre-rendered ENIG gold sprites
-  ctx.shadowBlur=0;ctx.globalAlpha=1;
+  // Via pads at endpoints and corners — ENIG gold plated
+  ctx.shadowBlur=0;
   for(var i=0;i<pts.length;i++){
     var isEndpoint=(i===0||i===pts.length-1);
-    var sp=_viaSprite(isEndpoint?5.5:3.5);
-    ctx.drawImage(sp.cv,pts[i].x-sp.R,pts[i].y-sp.R,sp.R*2,sp.R*2);
+    var r=isEndpoint?5.5:3.5;
+    var px=pts[i].x,py=pts[i].y;
+    // Copper base
+    ctx.beginPath();ctx.arc(px,py,r+1.5,0,Math.PI*2);
+    ctx.fillStyle='#a07020';ctx.globalAlpha=hilight?1:0.8;ctx.fill();
+    // ENIG gold radial gradient
+    var vg2=ctx.createRadialGradient(px-r*0.4,py-r*0.4,0,px,py,r+1.5);
+    vg2.addColorStop(0,'rgba(255,238,140,0.95)');
+    vg2.addColorStop(0.45,'rgba(212,168,67,0.9)');
+    vg2.addColorStop(0.85,'rgba(160,110,30,0.75)');
+    vg2.addColorStop(1,'rgba(100,65,10,0.5)');
+    ctx.beginPath();ctx.arc(px,py,r+1.5,0,Math.PI*2);
+    ctx.fillStyle=vg2;ctx.globalAlpha=1;ctx.fill();
+    ctx.strokeStyle='rgba(80,45,5,0.6)';ctx.lineWidth=0.5;ctx.stroke();
+    // Drill
+    ctx.beginPath();ctx.arc(px,py,r*0.38,0,Math.PI*2);
+    ctx.fillStyle='#080e08';ctx.globalAlpha=1;ctx.fill();
   }
 
   ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.restore();
-}
-
-var _viaSprites={};
-function _viaSprite(r){
-  var k=r.toFixed(1);
-  if(_viaSprites[k])return _viaSprites[k];
-  var R=r+2;
-  var cv=document.createElement('canvas');
-  cv.width=Math.ceil(R*2*DPR);cv.height=Math.ceil(R*2*DPR);
-  var c2=cv.getContext('2d');c2.scale(DPR,DPR);
-  var px=R,py=R;
-  c2.beginPath();c2.arc(px,py,r+1.5,0,Math.PI*2);
-  c2.fillStyle='#a07020';c2.globalAlpha=0.9;c2.fill();
-  var vg2=c2.createRadialGradient(px-r*0.4,py-r*0.4,0,px,py,r+1.5);
-  vg2.addColorStop(0,'rgba(255,238,140,0.95)');
-  vg2.addColorStop(0.45,'rgba(212,168,67,0.9)');
-  vg2.addColorStop(0.85,'rgba(160,110,30,0.75)');
-  vg2.addColorStop(1,'rgba(100,65,10,0.5)');
-  c2.beginPath();c2.arc(px,py,r+1.5,0,Math.PI*2);
-  c2.fillStyle=vg2;c2.globalAlpha=1;c2.fill();
-  c2.strokeStyle='rgba(80,45,5,0.6)';c2.lineWidth=0.5;c2.stroke();
-  c2.beginPath();c2.arc(px,py,r*0.38,0,Math.PI*2);
-  c2.fillStyle='#080e08';c2.fill();
-  var out={cv:cv,R:R};
-  _viaSprites[k]=out;
-  return out;
 }
 
 function drawXings(xings){
@@ -2381,10 +2368,10 @@ function drawXings(xings){
 let winParts=[];
 function spawnWin(){
   var cols=['#76b900','#d4a843','#b87333','#c8d8b0','#ffffff'];
-  winParts=Array.from({length:80},function(){return{
+  winParts=Array.from({length:70},function(){return{
     x:Math.random()*CW,y:Math.random()*CH,
-    vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7-2.5,
-    life:1,decay:.014+Math.random()*.012,r:Math.random()*4+1.5,
+    vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6-2,
+    life:1,decay:.005+Math.random()*.01,r:Math.random()*4+1.5,
     color:cols[Math.floor(Math.random()*cols.length)]};});
 }
 function drawWin(){
@@ -2418,18 +2405,11 @@ function render(){
   }
   if(drag){
     const c=gchip(drag.cid);
-    const dcol=(drag.curX-drag.offPxX)/TILE,drow=(drag.curY-drag.offPxY)/TILE;
-    // Quick 80ms pickup scale-up so the grab reads instantly
-    const s=1+0.07*Math.min(1,(performance.now()-(drag.t0||0))/80);
-    const ccx=(dcol+c.w/2)*TILE,ccy=(drow+c.h/2)*TILE;
-    ctx.save();
-    ctx.translate(ccx,ccy);ctx.scale(s,s);ctx.translate(-ccx,-ccy);
-    drawChipAt(c,dcol,drow,false,false);
-    ctx.restore();
+    drawChipAt(c,(drag.curX-drag.offPxX)/TILE,(drag.curY-drag.offPxY)/TILE,false,false);
   }
-  // liveCrossings is already recomputed from the float position in onMove —
-  // reuse it instead of paying for a second O(n²) violation pass per frame
-  if(!solved)drawXings(liveCrossings);
+  // Recompute violations from current float drag position so markers follow wires exactly
+  var frameViols = drag ? computeViolations(chipOv) : liveCrossings;
+  if(!solved)drawXings(frameViols);
   if(winParts.length>0)drawWin();
   if(liveCrossings.length>0||winParts.length>0||drag||animating)
     rafId=requestAnimationFrame(render);
@@ -2458,81 +2438,6 @@ const _audioCtx=(function(){
   try{return new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}
 })();
 
-// The context above is created at load (outside any gesture) so iOS starts it
-// suspended; drag sounds fire on touchstart/move which never unlock it.
-// Resume on the first touchend/click so level 1 isn't silent on iPhone.
-(function(){
-  if(!_audioCtx)return;
-  var evs=['touchend','pointerup','click','keydown'];
-  function unlock(){
-    try{
-      if(_audioCtx.state==='running'){
-        evs.forEach(function(ev){document.removeEventListener(ev,unlock,true);});
-      } else {
-        _audioCtx.resume();
-      }
-    }catch(e){}
-  }
-  evs.forEach(function(ev){document.addEventListener(ev,unlock,true);});
-})();
-
-// Single limiter bus — sounds stack cleanly without clipping
-var _masterBus=null;
-function _master(){
-  if(!_audioCtx)return null;
-  if(!_masterBus){
-    _masterBus=_audioCtx.createDynamicsCompressor();
-    _masterBus.threshold.value=-8;_masterBus.knee.value=4;_masterBus.ratio.value=12;
-    _masterBus.attack.value=0.002;_masterBus.release.value=0.08;
-    _masterBus.connect(_audioCtx.destination);
-  }
-  return _masterBus;
-}
-
-function _playPickup(){
-  if(!_audioCtx)return;
-  if(_audioCtx.state==='suspended')_audioCtx.resume();
-  const t=_audioCtx.currentTime;
-  const o=_audioCtx.createOscillator(),g=_audioCtx.createGain();
-  o.type='triangle';o.frequency.setValueAtTime(640,t);
-  o.frequency.exponentialRampToValueAtTime(880,t+0.04);
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(0.14,t+0.003);
-  g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
-  o.connect(g);g.connect(_master());o.start(t);o.stop(t+0.07);
-}
-
-var _lastUncrossSound=0;
-function _playUncross(){
-  if(!_audioCtx)return;
-  const n=performance.now();
-  if(n-_lastUncrossSound<90)return;
-  _lastUncrossSound=n;
-  if(_audioCtx.state==='suspended')_audioCtx.resume();
-  const t=_audioCtx.currentTime;
-  const o=_audioCtx.createOscillator(),g=_audioCtx.createGain();
-  o.type='sine';o.frequency.setValueAtTime(620,t);
-  o.frequency.exponentialRampToValueAtTime(980,t+0.07);
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(0.12,t+0.004);
-  g.gain.exponentialRampToValueAtTime(0.001,t+0.11);
-  o.connect(g);g.connect(_master());o.start(t);o.stop(t+0.13);
-}
-
-function _playSolve(){
-  if(!_audioCtx)return;
-  if(_audioCtx.state==='suspended')_audioCtx.resume();
-  [659,784,988,1319].forEach(function(f,i){
-    const t=_audioCtx.currentTime+i*0.055;
-    const o=_audioCtx.createOscillator(),g=_audioCtx.createGain();
-    o.type='triangle';o.frequency.value=f;
-    g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.18,t+0.004);
-    g.gain.exponentialRampToValueAtTime(0.001,t+0.28);
-    o.connect(g);g.connect(_master());o.start(t);o.stop(t+0.3);
-  });
-}
-
 function _playSlide(intensity){
   if(!_audioCtx)return;
   if(_audioCtx.state==='suspended')_audioCtx.resume();
@@ -2555,7 +2460,7 @@ function _playSlide(intensity){
   const gain=_audioCtx.createGain();
   gain.gain.setValueAtTime(0.38,t);
   gain.gain.exponentialRampToValueAtTime(0.001,t+0.055);
-  src.connect(bpf);bpf.connect(gain);gain.connect(_master());
+  src.connect(bpf);bpf.connect(gain);gain.connect(_audioCtx.destination);
   src.start(t);src.stop(t+0.06);
 }
 
@@ -2570,7 +2475,7 @@ function _playDrop(){
   const gain=_audioCtx.createGain();
   gain.gain.setValueAtTime(0.28,t);
   gain.gain.exponentialRampToValueAtTime(0.001,t+0.08);
-  osc.connect(gain);gain.connect(_master());
+  osc.connect(gain);gain.connect(_audioCtx.destination);
   osc.start(t);osc.stop(t+0.08);
 }
 
@@ -2580,10 +2485,9 @@ var _lastSoundCell={col:-1,row:-1};
 function onDown(e){
   if(animating)return;e.preventDefault();
   const p=evXY(e),c=chipAt(p.x,p.y);if(!c)return;
-  drag={cid:c.id,offPxX:p.x-c.col*TILE,offPxY:p.y-c.row*TILE,curX:p.x,curY:p.y,t0:performance.now()};
+  drag={cid:c.id,offPxX:p.x-c.col*TILE,offPxY:p.y-c.row*TILE,curX:p.x,curY:p.y};
   ghost={col:c.col,row:c.row,valid:true};
   _lastSoundCell={col:c.col,row:c.row};
-  _playPickup();
   kick();
 }
 function onMove(e){
@@ -2602,9 +2506,7 @@ function onMove(e){
   const c=gchip(drag.cid);
   const chipOv={id:drag.cid,col:(p.x-drag.offPxX)/TILE,row:(p.y-drag.offPxY)/TILE,
     w:c.w,h:c.h,sides:c.sides,label:c.label};
-  const prevViols=liveCrossings.length;
   liveCrossings=computeViolations(chipOv);
-  if(liveCrossings.length<prevViols)_playUncross();
   updateBadge(liveCrossings.length);
   kick();
 }
@@ -2645,15 +2547,14 @@ document.getElementById('solveBtn').addEventListener('click',function(){
     }
     const step=steps[si++],cid=step[0],ec=step[1].col,er=step[1].row;
     const c=gchip(cid);if(!c){doStep();return;}
-    const sc0=c.col,sr0=c.row,F=12;let f=0;kick();
+    const sc0=c.col,sr0=c.row,F=22;let f=0;kick();
     function frame(){
-      f++;const tt=f/F,et=1-Math.pow(1-tt,3);
-      c.col=sc0+(ec-sc0)*et;c.row=sr0+(er-sr0)*et;
+      f++;c.col=sc0+(ec-sc0)*(f/F);c.row=sr0+(er-sr0)*(f/F);
       liveCrossings=computeViolations(null);updateBadge(liveCrossings.length);kick();
-      if(f<F){animTimer=setTimeout(frame,14);}
+      if(f<F){animTimer=setTimeout(frame,18);}
       else{c.col=ec;c.row=er;invalidateCache();
         liveCrossings=computeViolations(null);updateBadge(liveCrossings.length);
-        animTimer=setTimeout(doStep,180);}
+        animTimer=setTimeout(doStep,350);}
     }
     frame();
   }
@@ -2669,39 +2570,6 @@ document.getElementById('resetBtn').addEventListener('click',function(){
 
 loadLevel(0);
 
-
-</script>
-
-
-<script>
-(function(){
-  var btn = document.createElement('a');
-  btn.href = 'index.html';
-  btn.innerHTML = '&#8592;';
-  btn.style.cssText = [
-    'position:fixed',
-    'top:max(env(safe-area-inset-top,0px),10px)',
-    'left:10px',
-    'z-index:2147483647',
-    'width:36px',
-    'height:36px',
-    'border-radius:50%',
-    'background:rgba(0,0,0,0.6)',
-    'border:1px solid rgba(255,255,255,0.2)',
-    'display:flex',
-    'align-items:center',
-    'justify-content:center',
-    'color:rgba(255,255,255,0.85)',
-    'font-size:18px',
-    'text-decoration:none',
-    'font-family:sans-serif',
-    'line-height:1',
-    '-webkit-backdrop-filter:blur(8px)',
-    'backdrop-filter:blur(8px)',
-  ].join(';');
-  // Append to documentElement to escape body overflow:hidden clipping
-  document.documentElement.appendChild(btn);
-})();
 </script>
 
 </body>

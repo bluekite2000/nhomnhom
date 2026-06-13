@@ -13,34 +13,31 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
 html,body{background:#020d18;display:flex;flex-direction:column;align-items:center;
-  justify-content:flex-start;min-height:100vh;font-family:'Share Tech Mono',monospace;
-  color:#ffffff;user-select:none;overflow:hidden;touch-action:none;
+  justify-content:center;min-height:100vh;font-family:'Share Tech Mono',monospace;
+  color:#c0a0e0;user-select:none;overflow:hidden;touch-action:none;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;}
 
-.wrap{display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 1px 1px;position:relative;z-index:1}
+.wrap{display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px;position:relative;z-index:1}
 
-.title{font-family:'Orbitron',sans-serif;font-size:clamp(8px,2vw,13px);
+.title{font-family:'Orbitron',sans-serif;font-size:clamp(18px,5vw,32px);
   background:linear-gradient(90deg,#ff4fd8,#a259ff,#4fc3f7);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   letter-spacing:4px;line-height:1;
   filter:drop-shadow(0 0 18px rgba(162,89,255,0.55)) drop-shadow(0 0 6px rgba(79,195,247,0.3))}
 
 .boards{display:flex;gap:10px;align-items:flex-start}
-.board-wrap{display:flex;flex-direction:row;align-items:center;gap:4px;width:100%;justify-content:center;}
-.board-label{font-size:18px;letter-spacing:4px;color:#ffffff;font-weight:bold;
-  text-shadow:0 0 10px rgba(162,89,255,0.6);
-  writing-mode:vertical-rl;transform:rotate(180deg);
-  white-space:nowrap;flex-shrink:0;width:28px;}
-.board-spacer{width:28px;flex-shrink:0;}
+.board-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+.board-label{font-size:12px;letter-spacing:6px;color:#a080c8;opacity:1;font-weight:bold;
+  text-shadow:0 0 10px rgba(162,89,255,0.5)}
 
 .btn{
   background:linear-gradient(160deg,#160040,#0a0025);
   border:1px solid rgba(162,89,255,0.35);
-  color:#ffffff;
-  padding:3px 8px;
-  font-family:'Share Tech Mono',monospace;font-size:11px;
+  color:#b090d8;
+  padding:5px 12px;
+  font-family:'Share Tech Mono',monospace;font-size:13px;
   cursor:pointer;border-radius:10px;letter-spacing:2px;
-  transition:all .12s;font-weight:bold;
+  transition:all .2s;font-weight:bold;
   box-shadow:0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
   position:relative;overflow:hidden}
 .btn::before{content:'';position:absolute;inset:0;border-radius:10px;
@@ -54,25 +51,8 @@ html,body{background:#020d18;display:flex;flex-direction:column;align-items:cent
 .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 
 
-#msg{font-size:10px;letter-spacing:5px;color:#e0e0e0;min-height:0;text-align:center;
+#msg{font-size:12px;letter-spacing:5px;color:#8060b0;min-height:16px;text-align:center;
   font-family:'Share Tech Mono',monospace}
-
-.stats-bar{display:flex;justify-content:center;align-items:center;gap:12px;
-  width:100%;padding:2px 4px;font-size:9px;letter-spacing:1px;
-  color:#dddddd;font-family:'Share Tech Mono',monospace;min-height:0;flex-wrap:nowrap}
-#levelInfo{color:#dddddd}
-#streakInfo{color:#ff8040;font-size:11px;letter-spacing:1px;
-  text-shadow:0 0 8px rgba(255,120,40,0.6)}
-
-.moves-bar{display:flex;gap:8px;align-items:center;justify-content:center;
-  font-size:13px;letter-spacing:3px;color:#dddddd;
-  font-family:'Share Tech Mono',monospace;min-height:14px}
-#movesInfo{color:#ffffff}
-#parInfo{color:#dddddd}
-#bestInfo{color:#40c0a0;font-size:13px}
-.bar-sep{color:#888888}
-
-.stars{font-size:13px;letter-spacing:2px}
 
 canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
   box-shadow:0 8px 48px rgba(0,0,0,0.8),
@@ -87,25 +67,14 @@ canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
   <div class="board-wrap">
     <div class="board-label">TARGET</div>
     <canvas id="cTarget"></canvas>
-    <div class="board-spacer"></div>
   </div>
   <div class="board-wrap">
     <div class="board-label">YOURS</div>
     <canvas id="cPlay"></canvas>
-    <div class="board-spacer"></div>
   </div>
-  <div class="stats-bar">
-    <span id="levelInfo">LEVEL 1/50</span>
-    <span id="movesInfo">MOVES 0</span>
-    <span class="bar-sep">·</span>
-    <span id="parInfo">PAR 3</span>
-    <span class="bar-sep" id="bestSep" style="display:none">·</span>
-    <span id="bestInfo" style="display:none"></span>
-    <span id="streakInfo"></span>
-  </div>
-  <div id="msg"></div>
+  <div id="msg">LEVEL 1</div>
   <div class="btns">
-    <button class="btn" id="hintBtn">HINT(3)</button>
+    <button class="btn" id="solveBtn">SOLVE</button>
     <button class="btn" id="undoBtn">UNDO</button>
     <button class="btn" id="resetBtn">RESET</button>
     <button class="btn" id="nextBtn" disabled>NEXT</button>
@@ -114,18 +83,17 @@ canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
 
 <canvas id="confetti" style="position:fixed;top:0;left:0;pointer-events:none;z-index:10"></canvas>
 <script>
-const ROWS=5,COLS=5,DPR=Math.min(window.devicePixelRatio||1,2);
+const ROWS=6,COLS=6,DPR=Math.min(window.devicePixelRatio||1,2);
+// Budget: title~36 + 2 labels~22 + msg~16 + buttons~38 + gaps~20 + padding~8 = ~140px
 const _safeTop=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')||'0')||0;
 const _safeBot=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab')||'0')||0;
-// UI budget: title~18 + stats~20 + buttons~36 + gaps~16 + board gap~8 = ~98px
-const _uiHeight=98;
-const _labelW=32; // vertical label width
+const _uiHeight=190;
 const _availH=window.innerHeight-_safeTop-_safeBot;
 const _byHeight=Math.floor((_availH-_uiHeight)/(2*ROWS));
-const _byWidth=Math.floor((window.innerWidth-64)/COLS);
-const CELL=Math.min(_byHeight,_byWidth);
+const _byWidth=Math.floor((window.innerWidth-20)/COLS);
+const CELL=Math.min(_byHeight,_byWidth,64);
 const W=COLS*CELL,H=ROWS*CELL;
-const HUES=[210,30,160,260,340];
+const HUES=[210,30,160,260,340,80];
 
 const cT=document.getElementById('cTarget'), tctx=cT.getContext('2d');
 const cP=document.getElementById('cPlay'),   ctx=cP.getContext('2d');
@@ -138,171 +106,60 @@ ctx.setTransform(DPR,0,0,DPR,0,0);
 
 // ── Levels ────────────────────────────────────────────────────────────────────
 const LEVELS=[
-  {rocks:[{y:4,col:1},{y:1,col:4},{y:1,col:0}],toRemove:['4,1'],toDraw:[{y:1,c0:0,c1:5}]},
-  {rocks:[{y:3,col:3},{y:3,col:2},{y:2,col:1}],toRemove:['3,2'],toDraw:[{y:4,c0:2,c1:4}]},
-  {rocks:[{y:4,col:2},{y:1,col:0},{y:1,col:2},{y:4,col:0}],toRemove:['4,0','1,2'],toDraw:[{y:4,c0:1,c1:5}]},
-  {rocks:[{y:3,col:0},{y:1,col:0},{y:4,col:3},{y:3,col:2}],toRemove:['4,3'],toDraw:[{y:4,c0:1,c1:5},{y:3,c0:0,c1:3}]},
-  {rocks:[{y:2,col:4},{y:2,col:1},{y:1,col:3},{y:4,col:3}],toRemove:['2,4','4,3'],toDraw:[{y:3,c0:0,c1:5}]},
-  {rocks:[{y:2,col:2},{y:3,col:3},{y:3,col:0},{y:1,col:4}],toRemove:['3,3','3,0'],toDraw:[{y:4,c0:0,c1:4}]},
-  {rocks:[{y:4,col:4},{y:3,col:4},{y:1,col:2},{y:4,col:1},{y:2,col:0}],toRemove:['1,2','2,0'],toDraw:[{y:1,c0:2,c1:4}]},
-  {rocks:[{y:1,col:1},{y:4,col:4},{y:1,col:4},{y:1,col:0},{y:1,col:2}],toRemove:['1,4'],toDraw:[{y:4,c0:0,c1:5},{y:2,c0:0,c1:5}]},
-  {rocks:[{y:1,col:4},{y:2,col:0},{y:2,col:4},{y:1,col:0},{y:2,col:2}],toRemove:['2,4','1,0'],toDraw:[{y:4,c0:0,c1:4}]},
-  {rocks:[{y:1,col:0},{y:2,col:0},{y:3,col:2},{y:4,col:1},{y:2,col:4}],toRemove:['2,4','4,1'],toDraw:[{y:1,c0:3,c1:5},{y:4,c0:0,c1:5}]},
-  {rocks:[{y:3,col:4},{y:2,col:4},{y:1,col:4},{y:4,col:3},{y:3,col:1}],toRemove:['1,4','3,4'],toDraw:[{y:1,c0:0,c1:4},{y:4,c0:0,c1:5}]},
-  {rocks:[{y:4,col:3},{y:3,col:3},{y:2,col:4},{y:3,col:1},{y:4,col:0}],toRemove:['4,0','2,4','3,1'],toDraw:[{y:2,c0:0,c1:5},{y:1,c0:0,c1:4}]},
-  {rocks:[{y:4,col:3},{y:1,col:2},{y:1,col:1},{y:4,col:1},{y:2,col:4},{y:3,col:3}],toRemove:['1,1','2,4'],toDraw:[{y:1,c0:0,c1:5},{y:2,c0:0,c1:5}]},
-  {rocks:[{y:2,col:2},{y:2,col:4},{y:2,col:1},{y:1,col:3},{y:4,col:3},{y:4,col:2}],toRemove:['4,3','2,2','2,4'],toDraw:[{y:2,c0:0,c1:5},{y:3,c0:1,c1:3}]},
-  {rocks:[{y:3,col:2},{y:4,col:2},{y:3,col:3},{y:4,col:1},{y:4,col:3},{y:3,col:0}],toRemove:['3,2','4,2'],toDraw:[{y:4,c0:0,c1:2},{y:2,c0:1,c1:4},{y:1,c0:1,c1:5}]},
-  {rocks:[{y:4,col:4},{y:2,col:3},{y:2,col:0},{y:2,col:1},{y:2,col:2},{y:1,col:0}],toRemove:['2,0','2,2','2,1'],toDraw:[{y:4,c0:0,c1:3},{y:1,c0:0,c1:5}]},
-  {rocks:[{y:1,col:3},{y:4,col:3},{y:4,col:1},{y:2,col:0},{y:3,col:0},{y:1,col:4}],toRemove:['2,0','1,3','4,1'],toDraw:[{y:4,c0:0,c1:2},{y:3,c0:0,c1:5}]},
-  {rocks:[{y:2,col:4},{y:3,col:2},{y:3,col:3},{y:3,col:1},{y:4,col:3},{y:4,col:0},{y:2,col:3}],toRemove:['3,1','2,3','4,0'],toDraw:[{y:4,c0:3,c1:5},{y:2,c0:3,c1:5}]},
-  {rocks:[{y:1,col:2},{y:3,col:2},{y:2,col:1},{y:3,col:0},{y:4,col:3},{y:1,col:3},{y:2,col:4}],toRemove:['4,3','3,2'],toDraw:[{y:2,c0:0,c1:5},{y:4,c0:0,c1:5},{y:3,c0:0,c1:5}]},
-  {rocks:[{y:4,col:4},{y:3,col:3},{y:4,col:2},{y:4,col:0},{y:1,col:1},{y:2,col:4},{y:1,col:2}],toRemove:['4,0','3,3','1,1'],toDraw:[{y:1,c0:1,c1:4},{y:3,c0:0,c1:5}]},
-  {rocks:[{y:4,col:3},{y:2,col:1},{y:1,col:0},{y:3,col:3},{y:4,col:4},{y:3,col:1},{y:1,col:4}],toRemove:['4,4','1,4','4,3'],toDraw:[{y:4,c0:0,c1:4},{y:3,c0:2,c1:5},{y:2,c0:0,c1:5}]},
-  {rocks:[{y:2,col:0},{y:3,col:3},{y:2,col:1},{y:3,col:2},{y:1,col:2},{y:2,col:4},{y:3,col:4}],toRemove:['3,4','2,0','1,2'],toDraw:[{y:1,c0:2,c1:5},{y:2,c0:0,c1:5},{y:3,c0:1,c1:4}]},
-  {rocks:[{y:3,col:2},{y:1,col:3},{y:4,col:1},{y:1,col:2},{y:4,col:3},{y:2,col:0},{y:3,col:4},{y:2,col:1}],toRemove:['3,4','3,2','4,3'],toDraw:[{y:4,c0:0,c1:3},{y:1,c0:2,c1:5}]},
-  {rocks:[{y:2,col:3},{y:2,col:1},{y:1,col:1},{y:3,col:1},{y:4,col:4},{y:4,col:2},{y:2,col:4},{y:4,col:0}],toRemove:['4,4','2,4','3,1'],toDraw:[{y:3,c0:0,c1:5},{y:1,c0:0,c1:5},{y:2,c0:1,c1:5}]},
-  {rocks:[{y:2,col:4},{y:1,col:1},{y:3,col:2},{y:4,col:3},{y:4,col:1},{y:4,col:2},{y:1,col:4},{y:2,col:2}],toRemove:['4,3','4,1','3,2','1,4'],toDraw:[{y:1,c0:1,c1:5},{y:4,c0:0,c1:2}]},
-  {rocks:[{y:4,col:0},{y:3,col:0},{y:1,col:0},{y:3,col:2},{y:4,col:1},{y:1,col:3},{y:4,col:4},{y:2,col:2}],toRemove:['4,0','4,1','3,0'],toDraw:[{y:2,c0:1,c1:4},{y:4,c0:0,c1:4},{y:1,c0:0,c1:2}]},
-  {rocks:[{y:1,col:0},{y:4,col:3},{y:2,col:2},{y:3,col:2},{y:4,col:4},{y:4,col:0},{y:4,col:2},{y:2,col:3}],toRemove:['1,0','2,3','4,4','4,0'],toDraw:[{y:4,c0:1,c1:5},{y:3,c0:3,c1:5},{y:1,c0:1,c1:4}]},
-  {rocks:[{y:4,col:3},{y:1,col:1},{y:2,col:2},{y:2,col:0},{y:4,col:2},{y:4,col:1},{y:3,col:0},{y:2,col:1}],toRemove:['4,3','4,1','1,1','2,2'],toDraw:[{y:2,c0:0,c1:2},{y:1,c0:2,c1:5}]},
-  {rocks:[{y:1,col:2},{y:3,col:0},{y:4,col:0},{y:1,col:3},{y:3,col:4},{y:2,col:0},{y:2,col:2},{y:3,col:1}],toRemove:['4,0','2,2','3,0'],toDraw:[{y:2,c0:2,c1:5},{y:4,c0:0,c1:5},{y:3,c0:1,c1:3}]},
-  {rocks:[{y:3,col:3},{y:3,col:1},{y:2,col:4},{y:3,col:0},{y:2,col:3},{y:3,col:2},{y:4,col:0},{y:2,col:2},{y:1,col:2}],toRemove:['3,2','1,2','2,4','3,1'],toDraw:[{y:3,c0:0,c1:4},{y:1,c0:3,c1:5}]},
-  {rocks:[{y:1,col:4},{y:3,col:3},{y:4,col:3},{y:3,col:4},{y:4,col:4},{y:3,col:0},{y:3,col:2},{y:3,col:1},{y:2,col:3}],toRemove:['2,3','3,0','3,2'],toDraw:[{y:2,c0:0,c1:2},{y:3,c0:0,c1:5},{y:4,c0:2,c1:4}]},
-  {rocks:[{y:2,col:3},{y:1,col:4},{y:4,col:1},{y:2,col:4},{y:1,col:2},{y:1,col:1},{y:3,col:0},{y:1,col:3},{y:4,col:4}],toRemove:['2,4','3,0','1,3','4,1'],toDraw:[{y:2,c0:0,c1:2},{y:1,c0:1,c1:3},{y:4,c0:0,c1:3}]},
-  {rocks:[{y:3,col:1},{y:4,col:4},{y:2,col:4},{y:2,col:0},{y:4,col:3},{y:2,col:2},{y:4,col:0},{y:1,col:3},{y:1,col:4}],toRemove:['3,1','2,4','2,0','2,2'],toDraw:[{y:4,c0:1,c1:4},{y:3,c0:0,c1:5},{y:1,c0:0,c1:4}]},
-  {rocks:[{y:3,col:3},{y:1,col:4},{y:3,col:2},{y:3,col:0},{y:1,col:3},{y:2,col:3},{y:2,col:1},{y:4,col:4},{y:1,col:2}],toRemove:['2,3','1,3','3,0'],toDraw:[{y:2,c0:0,c1:2},{y:4,c0:3,c1:5},{y:1,c0:0,c1:5},{y:3,c0:0,c1:5}]},
-  {rocks:[{y:3,col:1},{y:2,col:1},{y:3,col:4},{y:1,col:4},{y:4,col:4},{y:4,col:3},{y:4,col:2},{y:1,col:0},{y:2,col:0},{y:2,col:3}],toRemove:['1,4','2,0','4,2','4,4'],toDraw:[{y:3,c0:1,c1:5},{y:1,c0:0,c1:5},{y:2,c0:2,c1:4}]},
-  {rocks:[{y:1,col:0},{y:2,col:4},{y:4,col:4},{y:2,col:1},{y:2,col:0},{y:2,col:2},{y:4,col:0},{y:1,col:3},{y:3,col:3},{y:4,col:1}],toRemove:['4,4','2,4','3,3','2,2'],toDraw:[{y:3,c0:0,c1:4},{y:2,c0:1,c1:5},{y:1,c0:0,c1:3}]},
-  {rocks:[{y:1,col:2},{y:3,col:2},{y:3,col:3},{y:1,col:0},{y:2,col:2},{y:1,col:1},{y:4,col:3},{y:3,col:0},{y:4,col:4},{y:3,col:1}],toRemove:['3,3','3,2','2,2'],toDraw:[{y:1,c0:3,c1:5},{y:2,c0:0,c1:5},{y:3,c0:0,c1:2},{y:4,c0:1,c1:4}]},
-  {rocks:[{y:4,col:4},{y:1,col:4},{y:1,col:1},{y:2,col:0},{y:3,col:1},{y:4,col:1},{y:2,col:4},{y:2,col:3},{y:4,col:0},{y:1,col:0}],toRemove:['4,4','4,0','2,4','1,4'],toDraw:[{y:1,c0:2,c1:4},{y:3,c0:2,c1:5},{y:4,c0:0,c1:5}]},
-  {rocks:[{y:3,col:4},{y:1,col:2},{y:3,col:1},{y:2,col:0},{y:1,col:0},{y:4,col:1},{y:1,col:4},{y:3,col:2},{y:2,col:3},{y:1,col:3}],toRemove:['3,2','3,1','1,2','1,0'],toDraw:[{y:3,c0:2,c1:4},{y:2,c0:3,c1:5},{y:1,c0:0,c1:5},{y:4,c0:0,c1:5}]},
-  {rocks:[{y:1,col:2},{y:1,col:4},{y:2,col:4},{y:3,col:0},{y:3,col:4},{y:1,col:1},{y:4,col:0},{y:4,col:2},{y:4,col:3},{y:2,col:3}],toRemove:['1,1','2,4','4,3','1,4'],toDraw:[{y:4,c0:1,c1:3},{y:1,c0:0,c1:5},{y:3,c0:0,c1:5}]},
-  {rocks:[{y:2,col:0},{y:2,col:4},{y:2,col:2},{y:3,col:1},{y:4,col:4},{y:4,col:0},{y:4,col:3},{y:1,col:4},{y:2,col:3},{y:3,col:2}],toRemove:['2,2','4,0','2,3','3,2'],toDraw:[{y:3,c0:0,c1:5},{y:4,c0:1,c1:3},{y:2,c0:0,c1:2},{y:1,c0:3,c1:5}]},
-  {rocks:[{y:1,col:0},{y:1,col:4},{y:4,col:4},{y:3,col:2},{y:2,col:3},{y:3,col:0},{y:1,col:1},{y:1,col:2},{y:3,col:3},{y:2,col:2},{y:3,col:1}],toRemove:['3,1','1,0','4,4','1,4'],toDraw:[{y:3,c0:3,c1:5},{y:2,c0:2,c1:4},{y:4,c0:0,c1:4}]},
-  {rocks:[{y:3,col:3},{y:4,col:0},{y:2,col:2},{y:1,col:3},{y:3,col:1},{y:4,col:4},{y:4,col:1},{y:1,col:4},{y:3,col:2},{y:4,col:2},{y:1,col:2}],toRemove:['3,3','4,4','2,2','3,1'],toDraw:[{y:2,c0:0,c1:4},{y:3,c0:1,c1:5},{y:4,c0:0,c1:5},{y:1,c0:0,c1:5}]},
-  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:0},{y:1,col:3},{y:4,col:2},{y:1,col:2},{y:2,col:1},{y:3,col:3},{y:4,col:1},{y:3,col:4},{y:1,col:1}],toRemove:['2,3','2,1','3,0','3,3','1,2'],toDraw:[{y:3,c0:0,c1:5},{y:4,c0:3,c1:5},{y:1,c0:0,c1:4}]},
-  {rocks:[{y:1,col:2},{y:2,col:3},{y:4,col:2},{y:3,col:0},{y:2,col:2},{y:3,col:4},{y:3,col:2},{y:2,col:1},{y:4,col:3},{y:1,col:4},{y:4,col:0}],toRemove:['4,2','3,4','2,1','3,0'],toDraw:[{y:3,c0:1,c1:5},{y:2,c0:1,c1:5},{y:4,c0:0,c1:3},{y:1,c0:2,c1:5}]},
-  {rocks:[{y:2,col:2},{y:3,col:0},{y:2,col:3},{y:1,col:3},{y:2,col:4},{y:2,col:1},{y:4,col:1},{y:4,col:0},{y:3,col:2},{y:3,col:1},{y:3,col:4}],toRemove:['4,1','4,0','1,3','3,0','2,3'],toDraw:[{y:4,c0:1,c1:4},{y:2,c0:1,c1:3},{y:1,c0:1,c1:5}]},
-  {rocks:[{y:1,col:2},{y:4,col:4},{y:3,col:0},{y:2,col:4},{y:2,col:3},{y:1,col:0},{y:1,col:3},{y:4,col:1},{y:3,col:2},{y:1,col:4},{y:2,col:1},{y:4,col:2}],toRemove:['1,3','3,0','2,1','2,4'],toDraw:[{y:3,c0:0,c1:5},{y:4,c0:2,c1:5},{y:2,c0:0,c1:3},{y:1,c0:0,c1:4}]},
-  {rocks:[{y:1,col:4},{y:2,col:3},{y:4,col:2},{y:4,col:1},{y:1,col:0},{y:1,col:2},{y:4,col:4},{y:2,col:0},{y:4,col:3},{y:2,col:1},{y:2,col:2},{y:4,col:0}],toRemove:['4,1','2,1','2,2','4,0','2,3'],toDraw:[{y:3,c0:0,c1:4},{y:2,c0:1,c1:5},{y:4,c0:2,c1:5}]},
-  {rocks:[{y:2,col:2},{y:3,col:0},{y:4,col:1},{y:3,col:4},{y:2,col:0},{y:4,col:4},{y:1,col:3},{y:4,col:2},{y:1,col:4},{y:3,col:3},{y:1,col:0},{y:4,col:3}],toRemove:['3,0','1,4','1,3','2,2'],toDraw:[{y:2,c0:0,c1:3},{y:3,c0:0,c1:5},{y:1,c0:1,c1:5},{y:4,c0:1,c1:4}]},
-  {rocks:[{y:4,col:1},{y:4,col:2},{y:2,col:4},{y:4,col:4},{y:3,col:3},{y:3,col:2},{y:3,col:1},{y:1,col:4},{y:2,col:0},{y:1,col:0},{y:1,col:1},{y:3,col:0}],toRemove:['3,3','4,2','1,0','3,2','2,0'],toDraw:[{y:4,c0:1,c1:4},{y:3,c0:0,c1:5},{y:2,c0:1,c1:3},{y:1,c0:0,c1:4}]}
+  {rocks:[{y:1,col:2},{y:2,col:0},{y:4,col:1},{y:5,col:1}],toRemove:['5,1','4,1','1,2'],toDraw:[{y:4,c0:3,c1:5},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:1},{y:2,col:2},{y:3,col:1},{y:5,col:0}],toRemove:['2,2','3,1','5,0'],toDraw:[{y:3,c0:1,c1:5},{y:4,c0:5,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:4},{y:5,col:2}],toRemove:['5,2','1,3','2,2'],toDraw:[{y:1,c0:1,c1:3},{y:2,c0:0,c1:2}]},
+  {rocks:[{y:1,col:1},{y:2,col:1},{y:4,col:3},{y:5,col:4}],toRemove:['1,1','2,1','4,3'],toDraw:[{y:1,c0:3,c1:4},{y:2,c0:5,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:3,col:4},{y:4,col:3}],toRemove:['1,3','2,0','4,3'],toDraw:[{y:1,c0:2,c1:3},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:4,col:1},{y:5,col:3}],toRemove:['1,3','4,1','2,3'],toDraw:[{y:1,c0:0,c1:4},{y:2,c0:3,c1:5}]},
+  {rocks:[{y:1,col:2},{y:3,col:0},{y:4,col:4},{y:5,col:3}],toRemove:['4,4','3,0','1,2'],toDraw:[{y:4,c0:1,c1:4},{y:3,c0:0,c1:3}]},
+  {rocks:[{y:2,col:1},{y:3,col:0},{y:4,col:4},{y:5,col:2}],toRemove:['5,2','3,0','2,1'],toDraw:[{y:3,c0:2,c1:6},{y:2,c0:2,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:1},{y:4,col:0},{y:5,col:1}],toRemove:['2,2','1,3','4,0'],toDraw:[{y:4,c0:1,c1:4},{y:2,c0:1,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:0},{y:3,col:3},{y:4,col:4},{y:5,col:1}],toRemove:['5,1','3,3','2,0'],toDraw:[{y:5,c0:2,c1:5},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:0},{y:2,col:3},{y:3,col:4},{y:4,col:2},{y:5,col:3}],toRemove:['1,0','5,3','4,2'],toDraw:[{y:5,c0:2,c1:6},{y:1,c0:0,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:3},{y:4,col:1},{y:5,col:0}],toRemove:['3,3','2,1','5,0'],toDraw:[{y:2,c0:5,c1:6},{y:5,c0:1,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:1},{y:3,col:2},{y:4,col:3},{y:5,col:4}],toRemove:['2,1','3,2','4,3'],toDraw:[{y:2,c0:0,c1:2},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:0},{y:2,col:2},{y:3,col:4},{y:4,col:4},{y:5,col:0}],toRemove:['1,0','3,4','4,4'],toDraw:[{y:4,c0:0,c1:3},{y:3,c0:2,c1:5}]},
+  {rocks:[{y:1,col:0},{y:2,col:1},{y:3,col:1},{y:4,col:2},{y:5,col:1}],toRemove:['5,1','2,1','4,2'],toDraw:[{y:5,c0:0,c1:4},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:1},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,1','2,0'],toDraw:[{y:2,c0:0,c1:3},{y:5,c0:2,c1:5}]},
+  {rocks:[{y:2,col:0},{y:3,col:3},{y:4,col:1},{y:5,col:2}],toRemove:['5,2','4,1','2,0'],toDraw:[{y:4,c0:2,c1:4},{y:2,c0:3,c1:4},{y:1,c0:0,c1:2}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:5,col:0}],toRemove:['2,1','5,0','3,4'],toDraw:[{y:3,c0:0,c1:2},{y:5,c0:4,c1:6},{y:4,c0:2,c1:5}]},
+  {rocks:[{y:1,col:4},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','4,0','1,4'],toDraw:[{y:2,c0:1,c1:3},{y:4,c0:3,c1:5},{y:1,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:4},{y:3,col:0},{y:5,col:3}],toRemove:['2,4','5,3','3,0'],toDraw:[{y:2,c0:1,c1:5},{y:5,c0:3,c1:5},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,3','2,0'],toDraw:[{y:3,c0:4,c1:6},{y:2,c0:1,c1:2},{y:1,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:3,col:3},{y:4,col:2},{y:5,col:1}],toRemove:['5,1','3,3','4,2'],toDraw:[{y:3,c0:2,c1:4},{y:4,c0:1,c1:2},{y:2,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:3,col:4},{y:4,col:3},{y:5,col:3}],toRemove:['4,3','3,4','1,2'],toDraw:[{y:1,c0:1,c1:2},{y:4,c0:4,c1:5},{y:3,c0:5,c1:6}]},
+  {rocks:[{y:1,col:0},{y:3,col:0},{y:4,col:4},{y:5,col:1}],toRemove:['5,1','1,0','4,4'],toDraw:[{y:4,c0:5,c1:6},{y:2,c0:1,c1:5},{y:1,c0:4,c1:6}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:4,col:0},{y:5,col:0}],toRemove:['5,0','2,1','4,0'],toDraw:[{y:4,c0:0,c1:1},{y:5,c0:0,c1:1},{y:2,c0:2,c1:5}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:2},{y:4,col:4},{y:5,col:1}],toRemove:['1,3','3,2','4,4'],toDraw:[{y:4,c0:0,c1:4},{y:3,c0:1,c1:4},{y:1,c0:0,c1:1}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:0},{y:4,col:3},{y:5,col:3}],toRemove:['5,3','1,4','4,3'],toDraw:[{y:4,c0:0,c1:1},{y:1,c0:0,c1:3},{y:5,c0:1,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:3},{y:4,col:0},{y:5,col:4}],toRemove:['1,3','3,3','2,3'],toDraw:[{y:1,c0:1,c1:2},{y:2,c0:2,c1:6},{y:3,c0:0,c1:4}]},
+  {rocks:[{y:1,col:3},{y:2,col:1},{y:3,col:4},{y:4,col:1},{y:5,col:0}],toRemove:['1,3','4,1','2,1'],toDraw:[{y:1,c0:2,c1:3},{y:2,c0:3,c1:4},{y:4,c0:2,c1:5}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:1},{y:4,col:3},{y:5,col:1}],toRemove:['1,3','2,3','4,3'],toDraw:[{y:2,c0:2,c1:3},{y:4,c0:4,c1:6},{y:1,c0:3,c1:6}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:0},{y:4,col:2},{y:5,col:3}],toRemove:['5,3','2,3','4,2'],toDraw:[{y:2,c0:0,c1:1},{y:5,c0:1,c1:3},{y:4,c0:1,c1:3}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:4},{y:4,col:0},{y:5,col:3}],toRemove:['3,4','5,3','1,4'],toDraw:[{y:5,c0:4,c1:6},{y:3,c0:4,c1:5},{y:1,c0:2,c1:5}]},
+  {rocks:[{y:1,col:0},{y:2,col:2},{y:3,col:0},{y:4,col:2},{y:5,col:2}],toRemove:['5,2','1,0','4,2','2,2'],toDraw:[{y:1,c0:5,c1:6},{y:2,c0:3,c1:4},{y:5,c0:0,c1:3}]},
+  {rocks:[{y:1,col:3},{y:2,col:2},{y:3,col:3},{y:4,col:1},{y:5,col:3}],toRemove:['1,3','5,3','4,1','2,2'],toDraw:[{y:1,c0:3,c1:4},{y:2,c0:0,c1:1},{y:4,c0:0,c1:1}]},
+  {rocks:[{y:1,col:1},{y:2,col:4},{y:3,col:0},{y:4,col:1},{y:5,col:0}],toRemove:['2,4','1,1','4,1','3,0'],toDraw:[{y:2,c0:1,c1:5},{y:1,c0:2,c1:6},{y:4,c0:4,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:3},{y:4,col:0},{y:5,col:2}],toRemove:['5,2','3,3','4,0','1,1'],toDraw:[{y:3,c0:1,c1:5},{y:4,c0:5,c1:6},{y:1,c0:1,c1:5}]},
+  {rocks:[{y:1,col:4},{y:2,col:0},{y:3,col:4},{y:4,col:4},{y:5,col:4}],toRemove:['3,4','5,4','1,4','4,4'],toDraw:[{y:5,c0:4,c1:6},{y:1,c0:2,c1:5},{y:4,c0:3,c1:6}]},
+  {rocks:[{y:1,col:4},{y:2,col:4},{y:3,col:4},{y:4,col:4},{y:5,col:2}],toRemove:['2,4','5,2','1,4','3,4'],toDraw:[{y:5,c0:1,c1:5},{y:1,c0:5,c1:6},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:1},{y:4,col:0},{y:5,col:2}],toRemove:['5,2','2,3','4,0','1,2'],toDraw:[{y:1,c0:0,c1:1},{y:4,c0:2,c1:3},{y:2,c0:1,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:0},{y:3,col:3},{y:4,col:2},{y:5,col:2}],toRemove:['3,3','2,0','4,2','1,1'],toDraw:[{y:2,c0:2,c1:6},{y:4,c0:0,c1:3},{y:1,c0:0,c1:2}]},
+  {rocks:[{y:1,col:3},{y:2,col:3},{y:3,col:1},{y:4,col:1},{y:5,col:1}],toRemove:['5,1','1,3','3,1','4,1'],toDraw:[{y:4,c0:2,c1:4},{y:3,c0:0,c1:1},{y:1,c0:2,c1:5}]},
+  {rocks:[{y:1,col:4},{y:2,col:4},{y:3,col:3},{y:4,col:1},{y:5,col:0}],toRemove:['2,4','3,3','5,0','1,4'],toDraw:[{y:2,c0:0,c1:4},{y:1,c0:2,c1:5},{y:3,c0:2,c1:3}]},
+  {rocks:[{y:1,col:0},{y:2,col:3},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','1,0','2,3','3,4'],toDraw:[{y:2,c0:2,c1:6},{y:3,c0:0,c1:2},{y:5,c0:4,c1:5}]},
+  {rocks:[{y:1,col:1},{y:2,col:2},{y:3,col:3},{y:4,col:3},{y:5,col:2}],toRemove:['5,2','3,3','1,1','4,3'],toDraw:[{y:4,c0:1,c1:3},{y:1,c0:3,c1:5},{y:5,c0:1,c1:4}]},
+  {rocks:[{y:1,col:0},{y:2,col:1},{y:3,col:2},{y:4,col:1},{y:5,col:0}],toRemove:['1,0','4,1','2,1','5,0'],toDraw:[{y:2,c0:3,c1:6},{y:5,c0:4,c1:5},{y:1,c0:0,c1:2},{y:4,c0:0,c1:4}]},
+  {rocks:[{y:1,col:2},{y:2,col:3},{y:3,col:3},{y:4,col:3},{y:5,col:1}],toRemove:['5,1','3,3','2,3','1,2'],toDraw:[{y:1,c0:0,c1:4},{y:3,c0:1,c1:5},{y:5,c0:0,c1:1},{y:2,c0:0,c1:1}]},
+  {rocks:[{y:1,col:3},{y:2,col:4},{y:3,col:4},{y:4,col:0},{y:5,col:4}],toRemove:['5,4','1,3','2,4','4,0'],toDraw:[{y:1,c0:2,c1:4},{y:2,c0:2,c1:6},{y:4,c0:3,c1:6},{y:5,c0:3,c1:4}]},
+  {rocks:[{y:1,col:3},{y:2,col:0},{y:3,col:3},{y:4,col:2},{y:5,col:3}],toRemove:['4,2','5,3','3,3','2,0'],toDraw:[{y:4,c0:0,c1:1},{y:2,c0:0,c1:2},{y:3,c0:0,c1:2},{y:5,c0:0,c1:4}]},
+  {rocks:[{y:1,col:1},{y:2,col:4},{y:3,col:1},{y:4,col:2},{y:5,col:3}],toRemove:['2,4','1,1','3,1','4,2'],toDraw:[{y:3,c0:3,c1:6},{y:2,c0:2,c1:5},{y:4,c0:5,c1:6},{y:1,c0:0,c1:3}]},
+  {rocks:[{y:1,col:4},{y:2,col:3},{y:3,col:4},{y:4,col:1},{y:5,col:0}],toRemove:['4,1','2,3','5,0','3,4'],toDraw:[{y:4,c0:1,c1:4},{y:5,c0:5,c1:6},{y:3,c0:0,c1:3},{y:2,c0:5,c1:6}]},
 ];
 
 let gs=null, levelIdx=0, tapHistory=[], levelHueOffset=0;
-
-// ── Tutorial Level 0 ─────────────────────────────────────────────────────────
-// A simple 5×5 board with 1 rod to remove and 1 rod to draw.
-// Not counted in the 50 levels. Teaches the core mechanic.
-const TUT_LEVEL = {
-  rocks: [{y:2,col:1}],       // one gold rod at row 2, starting col 1
-  toRemove: ['2,1'],           // user removes it
-  toDraw: [{y:3,c0:0,c1:5}],  // user draws full-width rod at row 3
-};
-
-let isTutLevel = false;
-
-function initTutLevel() {
-  isTutLevel = true;
-  levelHueOffset = 43;
-  const L = TUT_LEVEL;
-  const targetDrawn = L.toDraw.map(d=>({y:d.y,c0:d.c0,c1:d.c1,progress:1}));
-  gs = {
-    rocks: L.rocks.map(r=>({...r})),
-    toRemove: new Set(L.toRemove),
-    toDraw: L.toDraw.map(d=>({...d})),
-    targetDrawn,
-    opened: new Set(),
-    drawn: [],
-    solved: false,
-    autoSolving: false,
-    idx: -1,
-    solveQueue: undefined,
-    _solveGen: 0
-  };
-  tapHistory=[];
-  colorCascades.length=0;
-  vanishingRods.length=0;
-  tapGlows.length=0;
-  mergeGlows.length=0;
-  solveGen++;
-  moveCount=0; hintsLeft=0;
-  usedHint=false; usedUndo=false; hintGlow=null;
-  document.getElementById('hintBtn').textContent='HINT(0)';
-  document.getElementById('hintBtn').disabled=true;
-  document.getElementById('nextBtn').disabled=true;
-  const initHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
-  renderedHues=initHm.map(col=>[...col]);
-  lastMatchState=null;
-  document.getElementById('msg').textContent='';
-  document.getElementById('levelInfo').textContent='TUTORIAL';
-  document.getElementById('movesInfo').textContent='';
-  document.getElementById('parInfo').textContent='';
-  document.getElementById('bestInfo').style.display='none';
-  document.getElementById('bestSep').style.display='none';
-  document.getElementById('streakInfo').textContent='';
-  cP.style.boxShadow=`0 4px 40px #00000099,0 0 0 2px #2a0a5a,0 0 0 4px #0a0018`;
-  drawTargetBoard();
-  initTutLevelFlow();
-}
-
-function initTutLevelFlow() {
-  // Clean up any existing tutorial UI
-  document.getElementById('tut-bubble')?.remove();
-  document.getElementById('tut-dim')?.remove();
-  document.getElementById('tut-target-dim')?.remove();
-  tut = null;
-
-  const steps = [
-    { type:'explain', msg:'RODS SPLIT THE WATER\nINTO DIFFERENT COLORS', sub:'', locked:true },
-    { type:'explain', msg:'REMOVE RODS TO LET\nCOLORS MERGE', sub:'', locked:true },
-    { type:'remove', key:'2,1', msg:'TAP THE CIRCLE TO\nREMOVE THE ROD', sub:'Watch the colors merge — just like water!', locked:true },
-    { type:'explain', msg:'YOU CAN ADD A ROD\nTO SPLIT THE TILES', sub:'', locked:true },
-    { type:'draw', y:3, c0:0, c1:5, msg:'DRAG YOUR FINGER\nACROSS THE DASHED LINE', sub:'This splits the tiles above from below. Notice how the colors change', locked:true },
-    { type:'explain', msg:'NOW YOU KNOW\nHOW IT WORKS!', sub:'Add or remove rods to match your board with the target board', locked:true },
-  ];
-  tut = { idx:-1, steps, step:0, dismissed:false, isTutLevel:true };
-  showTutBubble();
-}
-
 let dragState=null;
-
-// ── Engagement state ──────────────────────────────────────────────────────────
-let moveCount=0;
-let hintsLeft=3;
-let usedHint=false;
-let usedUndo=false;
-let hintGlow=null; // {type:'rock'|'rod', y, col/c0/c1, expires}
-let streak=(()=>{try{return parseInt(localStorage.getItem('wf_streak')||'0')||0;}catch(e){return 0;}})();
-
-function getPar(){
-  const L=LEVELS[levelIdx%LEVELS.length];
-  return L.toRemove.length+L.toDraw.length;
-}
-function getStars(moves,par){
-  if(moves<=par) return 3;
-  if(moves<=par+1) return 2;
-  return 1;
-}
-function starsStr(n){return'★'.repeat(n)+'☆'.repeat(3-n);}
-function getBest(idx){try{const v=parseInt(localStorage.getItem(`wf_b${idx}`));return isNaN(v)?null:v;}catch(e){return null;}}
-function saveBest(idx,moves){try{const p=getBest(idx);if(p===null||moves<p)localStorage.setItem(`wf_b${idx}`,moves);}catch(e){}}
-function saveStreak(s){try{localStorage.setItem('wf_streak',s);}catch(e){}}
-
-function updateStats(){
-  const par=getPar();
-  document.getElementById('levelInfo').textContent=`LEVEL ${levelIdx+1}/${LEVELS.length}`;
-  document.getElementById('movesInfo').textContent=`MOVES ${moveCount}`;
-  document.getElementById('parInfo').textContent=`PAR ${par}`;
-  const si=document.getElementById('streakInfo');
-  si.textContent=streak>1?`🔥${streak}`:'';
-  const best=getBest(levelIdx);
-  const bi=document.getElementById('bestInfo');
-  const bs=document.getElementById('bestSep');
-  if(best!==null){bi.textContent=`BEST ${best}`;bi.style.display='';bs.style.display='';}
-  else{bi.style.display='none';bs.style.display='none';}
-}
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 function segRockAt(rocks,y,col){
@@ -334,7 +191,7 @@ function cellHueMap(rocks, opened, drawn){
     const jitter=((levelIdx*13*(col+1)*7)%30)-15; // ±15° jitter
     const colBase=(levelHueOffset+col*60+jitter+360)%360;
     const bandHues=ys.slice(0,-1).map((y,i)=>
-      (colBase+i*STEP)%360
+      i===0 ? colBase : (colBase+y*STEP)%360
     );
     for(let row=0;row<ROWS;row++){
       let bandIdx=0;
@@ -377,205 +234,15 @@ function initLevel(idx){
   tapGlows.length=0;
   mergeGlows.length=0;
   solveGen++;
-  // Reset engagement state
-  moveCount=0;
-  hintsLeft=3;
-  usedHint=false;
-  usedUndo=false;
-  hintGlow=null;
-  document.getElementById('hintBtn').textContent='HINT(3)';
-  document.getElementById('hintBtn').disabled=false;
   // Init renderedHues from actual game state (no zeros)
   const initHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
   renderedHues=initHm.map(col=>[...col]);
   lastMatchState=null;
-  document.getElementById('msg').textContent='';
+  document.getElementById('msg').textContent=`LEVEL ${idx+1}`;
   document.getElementById('nextBtn').disabled=true;
-  updateStats();
+  document.getElementById('solveBtn').disabled=false;
   cP.style.boxShadow=`0 4px 40px #00000099,0 0 0 2px #2a0a5a,0 0 0 4px #0a0018`;
   drawTargetBoard();
-  // Init tutorial for first 3 levels
-  initTutorial(idx);
-}
-
-// ── Tutorial System ───────────────────────────────────────────────────────────
-let tut = null; // tutorial state
-
-// Tutorial teaches: rods split water into different colors. Remove rod → colors merge. Add rod → colors split.
-
-function initTutorial(idx) {
-  // Tutorial is handled by the dedicated tutorial level (level 0 before real levels)
-  // No in-game tutorial needed for real levels
-  document.getElementById('tut-bubble')?.remove();
-  document.getElementById('tut-dim')?.remove();
-  document.getElementById('tut-target-dim')?.remove();
-  tut = null;
-}
-
-function showTutBubble() {
-  document.getElementById('tut-bubble')?.remove();
-  document.getElementById('tut-dim')?.remove();
-  document.getElementById('tut-target-dim')?.remove();
-  if (!tut || tut.dismissed || tut.step >= tut.steps.length) return;
-
-  const step = tut.steps[tut.step];
-  if (!step.msg) return;
-
-  const isExplain = step.type === 'explain';
-  const rect = cT.getBoundingClientRect();
-  const topPx = (rect.bottom - 10) + 'px';
-
-  // Block board input during explain steps (no dim, but intercept touches)
-  if (isExplain) {
-    const blocker = document.createElement('div');
-    blocker.id = 'tut-dim';
-    blocker.style.cssText = 'position:fixed;inset:0;z-index:9996;pointer-events:all;background:transparent';
-    document.documentElement.appendChild(blocker);
-  }
-
-  // Always dim the target board — user should only interact with YOURS
-  {
-    const tRect = cT.getBoundingClientRect();
-    const dimTarget = document.createElement('div');
-    dimTarget.id = 'tut-target-dim';
-    dimTarget.style.cssText = [
-      'position:fixed',
-      `top:${tRect.top}px`,
-      `left:${tRect.left}px`,
-      `width:${tRect.width}px`,
-      `height:${tRect.height}px`,
-      'background:rgba(0,0,0,0.55)',
-      'z-index:9997',
-      'pointer-events:all',
-      'border-radius:8px',
-    ].join(';');
-    document.documentElement.appendChild(dimTarget);
-  }
-
-  const el = document.createElement('div');
-  el.id = 'tut-bubble';
-
-  el.style.cssText = [
-    'position:fixed',
-    `top:${topPx}`,
-    'left:50%',
-    'transform:translate(-50%,-100%)',
-    'background:rgba(5,5,20,0.97)',
-    'border:2px solid rgba(162,89,255,0.7)',
-    'border-radius:14px',
-    'padding:14px 20px 10px',
-    "font-family:'Share Tech Mono',monospace",
-    'color:#fff',
-    'text-align:center',
-    'z-index:9999',
-    'max-width:260px',
-    'box-shadow:0 0 30px rgba(162,89,255,0.5)',
-    isExplain ? 'pointer-events:all' : 'pointer-events:none',
-  ].join(';');
-
-  const lines = step.msg.split('\n');
-  let html = lines.map(l => `<div style="font-size:14px;letter-spacing:2px;color:#fff;font-weight:bold;line-height:1.4">${l}</div>`).join('');
-  if (step.sub && !isExplain) {
-    html += `<div style="margin-top:6px;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.45);line-height:1.5">${step.sub}</div>`;
-  }
-  if (step.sub && isExplain) {
-    html += `<div style="margin-top:8px;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.6);line-height:1.5">${step.sub}</div>`;
-  }
-  if (isExplain) {
-    html += '<button onclick="tutAdvance()" style="margin-top:12px;font-family:\'Share Tech Mono\',monospace;font-size:13px;letter-spacing:3px;background:rgba(162,89,255,0.25);border:1.5px solid rgba(162,89,255,0.8);color:#d4a8ff;border-radius:8px;padding:7px 24px;cursor:pointer;display:block;width:100%">' +
-      (tut.step === tut.steps.length - 1 ? 'PLAY →' : 'NEXT →') + '</button>';
-  }
-
-  el.innerHTML = html;
-  if (!isExplain) el.onclick = () => tutAdvance();
-
-  document.documentElement.appendChild(el);
-}
-
-let _tutAdvancing = false;
-function tutAdvance() {
-  if (!tut || tut.dismissed || _tutAdvancing) return;
-  _tutAdvancing = true;
-  setTimeout(() => { _tutAdvancing = false; }, 800);
-  document.getElementById('tut-bubble')?.remove();
-  document.getElementById('tut-dim')?.remove();
-  document.getElementById('tut-target-dim')?.remove();
-  tut.step++;
-  if (tut.step >= tut.steps.length) {
-    tut.dismissed = true;
-    if (tut.isTutLevel) {
-      // Done with tutorial level — start real game after brief pause
-      isTutLevel = false;
-      levelIdx = 0;
-      setTimeout(() => initLevel(0), 300);
-    }
-  } else {
-    showTutBubble();
-  }
-}
-
-function tutCurrentStep() {
-  if (!tut || tut.dismissed || tut.step >= tut.steps.length) return null;
-  return tut.steps[tut.step];
-}
-
-function tutIsLocked() {
-  const s = tutCurrentStep();
-  return s && s.locked;
-}
-
-function tutDrawFinger(ctx, now) {
-  if (!tut || tut.dismissed) return;
-  const step = tutCurrentStep();
-  if (!step || step.type === 'explain') return;
-
-  const pulse = 0.5 + 0.5 * Math.sin(now * 0.004);
-
-  ctx.save();
-
-  if (step.type === 'remove') {
-    const [ry, rcol] = step.key.split(',').map(Number);
-    const activeRocks = gs.rocks.filter(r => !gs.opened.has(`${r.y},${r.col}`));
-    const rowSegs = activeRocks.filter(r => r.y === ry).sort((a, b) => a.col - b.col);
-    const si = rowSegs.findIndex(r => r.col === rcol);
-    const rx0 = rcol * CELL + 4;
-    const rx1 = si + 1 < rowSegs.length ? rowSegs[si + 1].col * CELL - 4 : COLS * CELL - 4;
-    const px = (rx0 + rx1) / 2;
-    const py = ry * CELL;
-
-    // Expanding pulse rings — no finger
-    ctx.shadowColor = 'rgba(255,200,0,1)';
-    ctx.shadowBlur = 20 * pulse;
-    ctx.strokeStyle = `rgba(255,200,0,${0.5 + 0.5 * pulse})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(px, py, CELL * 0.38 + pulse * 8, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(255,200,0,${0.2 * pulse})`;
-    ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.arc(px, py, CELL * 0.38 + pulse * 8 + 8, 0, Math.PI * 2); ctx.stroke();
-
-  } else if (step.type === 'draw') {
-    const x0 = step.c0 * CELL + 4, x1 = step.c1 * CELL - 4;
-    const py = step.y * CELL;
-    const rodLen = x1 - x0;
-    const dashLen = 14, gapLen = 8, cycleLen = dashLen + gapLen;
-
-    // Animated running dash: offset moves left→right over time
-    const offset = -((now / 30) % cycleLen);
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(68,255,136,0.9)';
-    ctx.shadowBlur = 14 * pulse;
-    ctx.strokeStyle = `rgba(68,255,136,${0.6 + 0.3 * pulse})`;
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = offset;
-    ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(x1, py); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-  }
-
-  ctx.restore();
 }
 
 function drawTargetBoard(){
@@ -654,61 +321,21 @@ function _drawStar(c,x,y,sz){
   c.fill();
 }
 
-// Pre-rendered sprites: one per hue (tiles) + one static background.
-// Avoids rebuilding ~10 gradients per tile per frame.
-const _tileSprites=new Map();
-const _TILE_PAD=Math.ceil(CELL*0.27);
-function getTileSprite(h){
-  h=((Math.round(h)%360)+360)%360;
-  let sp=_tileSprites.get(h);
-  if(sp) return sp;
-  const GAP=2,R=4,tw=CELL-GAP*2,th=CELL-GAP*2;
-  const w=tw+_TILE_PAD*2,hg=th+_TILE_PAD*2;
-  const cv=document.createElement('canvas');
-  cv.width=Math.ceil(w*DPR); cv.height=Math.ceil(hg*DPR);
-  const c=cv.getContext('2d'); c.setTransform(DPR,0,0,DPR,0,0);
-  const tx=_TILE_PAD,ty=_TILE_PAD;
-  const cx=tx+tw/2,cy=ty+th/2,br=Math.max(0.01,CELL*0.9);
-  const bl=c.createRadialGradient(cx,cy,0,cx,cy,br);
-  bl.addColorStop(0,`hsla(${h},100%,60%,0.35)`);
-  bl.addColorStop(0.5,`hsla(${h},90%,50%,0.1)`);
-  bl.addColorStop(1,`hsla(${h},90%,55%,0)`);
-  c.fillStyle=bl; c.fillRect(tx-br*0.3,ty-br*0.3,tw+br*0.6,th+br*0.6);
-  const g=c.createLinearGradient(tx,ty,tx,ty+th);
-  g.addColorStop(0,   `hsla(${h},75%,52%,0.88)`);
-  g.addColorStop(0.35,`hsla(${h},78%,40%,0.82)`);
-  g.addColorStop(0.7, `hsla(${h},80%,28%,0.78)`);
-  g.addColorStop(1,   `hsla(${h},85%,18%,0.75)`);
-  c.fillStyle=g; roundRect(c,tx,ty,tw,th,R); c.fill();
-  const bs=c.createLinearGradient(tx,ty+th*0.6,tx,ty+th);
-  bs.addColorStop(0,'rgba(0,0,0,0)');
-  bs.addColorStop(1,'rgba(0,0,0,0.4)');
-  c.fillStyle=bs; roundRect(c,tx,ty,tw,th,R); c.fill();
-  const sh=c.createLinearGradient(tx,ty,tx,ty+th*0.5);
-  sh.addColorStop(0,'rgba(255,255,255,0.55)');
-  sh.addColorStop(0.3,'rgba(255,255,255,0.18)');
-  sh.addColorStop(1,'rgba(255,255,255,0)');
-  c.fillStyle=sh; roundRect(c,tx,ty,tw,th*0.55,R); c.fill();
-  c.strokeStyle=`hsla(${h},85%,75%,0.5)`; c.lineWidth=1;
-  roundRect(c,tx,ty,tw,th,R); c.stroke();
-  sp={cv,w,h:hg};
-  _tileSprites.set(h,sp);
-  return sp;
-}
-let _bgSprite=null;
-function getBgSprite(){
-  if(_bgSprite) return _bgSprite;
-  const GAP=2,R=4;
-  const cv=document.createElement('canvas');
-  cv.width=W*DPR; cv.height=H*DPR;
-  const c=cv.getContext('2d'); c.setTransform(DPR,0,0,DPR,0,0);
+function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=false, showRods=true, frameNow=0){
+  const GAP=2, R=4, now=frameNow||performance.now();
+  const hm=cellHueMap(rocks,opened,drawn);
   c.fillStyle='rgb(8,0,20)'; c.fillRect(0,0,W,H);
+
+  // Subtle inner vignette
   const vig=c.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.75);
   vig.addColorStop(0,'rgba(0,0,0,0)');
   vig.addColorStop(1,'rgba(0,0,0,0.35)');
   c.fillStyle=vig; c.fillRect(0,0,W,H);
+
+  // Background tile grid
   for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
     const tx=col*CELL+GAP,ty=row*CELL+GAP,tw=CELL-GAP*2,th=CELL-GAP*2;
+    // Empty tile — subtle glass inset
     const eg=c.createLinearGradient(tx,ty,tx,ty+th);
     eg.addColorStop(0,'rgba(255,255,255,0.04)');
     eg.addColorStop(1,'rgba(0,0,0,0.15)');
@@ -716,14 +343,6 @@ function getBgSprite(){
     c.strokeStyle='rgba(255,255,255,0.05)'; c.lineWidth=1;
     roundRect(c,tx,ty,tw,th,R); c.stroke();
   }
-  _bgSprite=cv;
-  return cv;
-}
-
-function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=false, showRods=true, frameNow=0){
-  const GAP=2, R=4, now=frameNow||performance.now();
-  const hm=cellHueMap(rocks,opened,drawn);
-  c.drawImage(getBgSprite(),0,0,W,H);
 
   // Colored tiles
   for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
@@ -749,21 +368,48 @@ function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=
 
     // Draw fromHue tile first, then toHue tile on top with alpha=cascT
     // This gives a clean opacity crossfade — no intermediate hues
-    const drawTile=(h,alpha,scale)=>{
-      const sp=getTileSprite(h);
+    const drawTile=(h,alpha)=>{
       c.save(); c.globalAlpha=alpha;
-      if(scale&&scale!==1){
-        const cx=tx+tw/2,cy=ty+th/2;
-        c.translate(cx,cy); c.scale(scale,scale); c.translate(-cx,-cy);
-      }
-      c.drawImage(sp.cv,tx-_TILE_PAD,ty-_TILE_PAD,sp.w,sp.h);
+
+      // Outer colored bloom
+      const cx=tx+tw/2,cy=ty+th/2,br=Math.max(0.01,CELL*0.9);
+      const bl=c.createRadialGradient(cx,cy,0,cx,cy,br);
+      bl.addColorStop(0,`hsla(${h},100%,60%,0.35)`);
+      bl.addColorStop(0.5,`hsla(${h},90%,50%,0.1)`);
+      bl.addColorStop(1,`hsla(${h},90%,55%,0)`);
+      c.fillStyle=bl; c.fillRect(tx-br*0.3,ty-br*0.3,tw+br*0.6,th+br*0.6);
+
+      // Base tile body — rich gradient with more depth
+      const g=c.createLinearGradient(tx,ty,tx,ty+th);
+      g.addColorStop(0,   `hsla(${h},75%,52%,0.88)`);
+      g.addColorStop(0.35,`hsla(${h},78%,40%,0.82)`);
+      g.addColorStop(0.7, `hsla(${h},80%,28%,0.78)`);
+      g.addColorStop(1,   `hsla(${h},85%,18%,0.75)`);
+      c.fillStyle=g; roundRect(c,tx,ty,tw,th,R); c.fill();
+
+      // Inner bottom shadow for depth
+      const bs=c.createLinearGradient(tx,ty+th*0.6,tx,ty+th);
+      bs.addColorStop(0,'rgba(0,0,0,0)');
+      bs.addColorStop(1,'rgba(0,0,0,0.4)');
+      c.fillStyle=bs; roundRect(c,tx,ty,tw,th,R); c.fill();
+
+      // Top highlight shimmer
+      const sh=c.createLinearGradient(tx,ty,tx,ty+th*0.5);
+      sh.addColorStop(0,'rgba(255,255,255,0.55)');
+      sh.addColorStop(0.3,'rgba(255,255,255,0.18)');
+      sh.addColorStop(1,'rgba(255,255,255,0)');
+      c.fillStyle=sh; roundRect(c,tx,ty,tw,th*0.55,R); c.fill();
+
+      // Colored rim glow
+      c.strokeStyle=`hsla(${h},85%,75%,0.5)`; c.lineWidth=1;
+      roundRect(c,tx,ty,tw,th,R); c.stroke();
+
       c.restore();
     };
 
     if(cascT<1 && cascT>0){
       drawTile(cascFromHue, 1);       // old color fully opaque underneath
-      // new color fades in on top with a quick 1.0→1.06→1.0 pop
-      drawTile(hue, cascT, 1+0.06*Math.sin(cascT*Math.PI));
+      drawTile(hue, cascT);           // new color fades in on top
     } else {
       drawTile(hue, 1);
     }
@@ -815,21 +461,20 @@ function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=
     if(d._vanishing) continue;
     const py=d.y*CELL;
     const x0=d.c0*CELL+4, x1=d.c1*CELL-4;
-    const sweepX = d._rtl ? x1-(x1-x0)*prog : x0+(x1-x0)*prog;
-    const startX = d._rtl ? x1 : x0;
+    const sweepX=x0+(x1-x0)*prog;
     const pulse=0.5+0.5*Math.sin(T*3.5+d.y*0.6);
     // Wide soft aura
     c.strokeStyle=`rgba(0,180,255,${0.1+0.06*pulse})`; c.lineWidth=14;
     c.shadowBlur=0;
-    c.beginPath(); c.moveTo(startX,py); c.lineTo(sweepX,py); c.stroke();
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
     // Mid glow
     c.strokeStyle=`rgba(0,220,255,${0.55+0.15*pulse})`; c.lineWidth=6;
     c.shadowColor='rgba(0,200,255,0.9)'; c.shadowBlur=10;
-    c.beginPath(); c.moveTo(startX,py); c.lineTo(sweepX,py); c.stroke();
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
     // Bright core
     c.strokeStyle='rgba(180,245,255,0.98)'; c.lineWidth=2;
     c.shadowColor='rgba(100,240,255,1)'; c.shadowBlur=5;
-    c.beginPath(); c.moveTo(startX,py); c.lineTo(sweepX,py); c.stroke();
+    c.beginPath(); c.moveTo(x0,py); c.lineTo(sweepX,py); c.stroke();
     c.shadowBlur=0;
   }
   c.restore();
@@ -861,91 +506,39 @@ function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=
 }
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
-let audioCtx=null,_master=null;
+let audioCtx=null;
 function getAudio(){
   if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended') audioCtx.resume();
   return audioCtx;
 }
-function getMaster(){
-  const ac=getAudio();
-  if(!_master){
-    _master=ac.createDynamicsCompressor();
-    _master.threshold.value=-8; _master.knee.value=4; _master.ratio.value=12;
-    _master.attack.value=0.002; _master.release.value=0.08;
-    _master.connect(ac.destination);
-  }
-  return _master;
-}
-
-// iOS unlocks WebAudio only on touchend/click — board taps resolve on
-// touchend but rod drags start sounds earlier, so prime on first gesture.
-(function(){
-  const evs=['touchend','pointerup','click','keydown'];
-  function unlock(){
-    try{
-      const a=getAudio();
-      if(a.state==='running') evs.forEach(ev=>document.removeEventListener(ev,unlock,true));
-    }catch(e){}
-  }
-  evs.forEach(ev=>document.addEventListener(ev,unlock,true));
-})();
 
 function playVanish(){
   try{
     const ac=getAudio();
     const now=ac.currentTime;
-    // Sharp crack transient
-    const buf=ac.createBuffer(1,ac.sampleRate*0.08,ac.sampleRate);
-    const data=buf.getChannelData(0);
-    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,3);
-    const crk=ac.createBufferSource();
-    const crkG=ac.createGain();
-    const crkF=ac.createBiquadFilter();
-    crkF.type='highpass'; crkF.frequency.value=1200;
-    crk.buffer=buf; crk.connect(crkF); crkF.connect(crkG); crkG.connect(getMaster());
-    crkG.gain.setValueAtTime(0.35,now); crkG.gain.exponentialRampToValueAtTime(0.001,now+0.08);
-    crk.start(now);
-    // Water whoosh sweep
     const osc=ac.createOscillator();
     const gain=ac.createGain();
-    osc.connect(gain); gain.connect(getMaster());
+    osc.connect(gain); gain.connect(ac.destination);
     osc.type='sine';
-    osc.frequency.setValueAtTime(520,now+0.04);
-    osc.frequency.exponentialRampToValueAtTime(140,now+0.38);
-    gain.gain.setValueAtTime(0,now);
-    gain.gain.setValueAtTime(0.14,now+0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001,now+0.38);
-    osc.start(now); osc.stop(now+0.4);
-    // Noise burst
-    const buf2=ac.createBuffer(1,ac.sampleRate*0.12,ac.sampleRate);
-    const d2=buf2.getChannelData(0);
-    for(let i=0;i<d2.length;i++) d2[i]=(Math.random()*2-1)*Math.pow(1-i/d2.length,1.5);
+    osc.frequency.setValueAtTime(520,now);
+    osc.frequency.exponentialRampToValueAtTime(180,now+0.35);
+    gain.gain.setValueAtTime(0.18,now);
+    gain.gain.exponentialRampToValueAtTime(0.001,now+0.35);
+    osc.start(now); osc.stop(now+0.35);
+    const buf=ac.createBuffer(1,ac.sampleRate*0.15,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,2);
     const src=ac.createBufferSource();
     const ng=ac.createGain();
     const filt=ac.createBiquadFilter();
-    filt.type='bandpass'; filt.frequency.value=600; filt.Q.value=0.7;
-    src.buffer=buf2; src.connect(filt); filt.connect(ng); ng.connect(getMaster());
-    ng.gain.setValueAtTime(0.1,now+0.04); ng.gain.exponentialRampToValueAtTime(0.001,now+0.18);
-    src.start(now+0.04);
+    filt.type='bandpass'; filt.frequency.value=800; filt.Q.value=0.8;
+    src.buffer=buf; src.connect(filt); filt.connect(ng); ng.connect(ac.destination);
+    ng.gain.setValueAtTime(0.12,now); ng.gain.exponentialRampToValueAtTime(0.001,now+0.15);
+    src.start(now);
   }catch(e){}
 }
 
-function playCascade(dir, rowIndex){
-  try{
-    const ac=getAudio();
-    const t=ac.currentTime+rowIndex*0.055;
-    const base=dir==='down'?420:560;
-    const hz=base*Math.pow(2,(dir==='down'?rowIndex:-rowIndex)*2/12);
-    const o=ac.createOscillator(),g=ac.createGain();
-    o.type='sine'; o.frequency.setValueAtTime(hz,t);
-    o.frequency.exponentialRampToValueAtTime(hz*1.18,t+0.07);
-    g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.09,t+0.004);
-    g.gain.exponentialRampToValueAtTime(0.001,t+0.11);
-    o.connect(g); g.connect(getMaster()); o.start(t); o.stop(t+0.13);
-  }catch(e){}
-}
+function playCascade(dir, rowIndex){}
 
 function playDraw(){
   try{
@@ -953,7 +546,7 @@ function playDraw(){
     const now=ac.currentTime;
     const osc=ac.createOscillator();
     const gain=ac.createGain();
-    osc.connect(gain); gain.connect(getMaster());
+    osc.connect(gain); gain.connect(ac.destination);
     osc.type='sine';
     osc.frequency.setValueAtTime(280,now);
     osc.frequency.exponentialRampToValueAtTime(560,now+0.3);
@@ -967,11 +560,11 @@ function playWin(){
   try{
     const ac=getAudio();
     const now=ac.currentTime;
-    [0,0.08,0.16,0.27].forEach((t,i)=>{
+    [0,0.12,0.24,0.4].forEach((t,i)=>{
       const freqs=[440,554,659,880];
       const osc=ac.createOscillator();
       const gain=ac.createGain();
-      osc.connect(gain); gain.connect(getMaster());
+      osc.connect(gain); gain.connect(ac.destination);
       osc.type='sine';
       osc.frequency.value=freqs[i];
       gain.gain.setValueAtTime(0.15,now+t);
@@ -981,40 +574,12 @@ function playWin(){
   }catch(e){}
 }
 
-function playPerfect(){
-  try{
-    const ac=getAudio();
-    const now=ac.currentTime;
-    // Rising arpeggio + shimmer
-    [0,0.07,0.14,0.22,0.32,0.44].forEach((t,i)=>{
-      const freqs=[440,554,659,880,1100,1320];
-      const osc=ac.createOscillator();
-      const gain=ac.createGain();
-      osc.connect(gain); gain.connect(getMaster());
-      osc.type=i<4?'sine':'triangle';
-      osc.frequency.value=freqs[i];
-      gain.gain.setValueAtTime(0.13,now+t);
-      gain.gain.exponentialRampToValueAtTime(0.001,now+t+0.5);
-      osc.start(now+t); osc.stop(now+t+0.55);
-    });
-    // Bell shimmer
-    const bell=ac.createOscillator();
-    const bellG=ac.createGain();
-    bell.connect(bellG); bellG.connect(getMaster());
-    bell.type='sine'; bell.frequency.value=2640;
-    bellG.gain.setValueAtTime(0,now+0.6);
-    bellG.gain.setValueAtTime(0.08,now+0.62);
-    bellG.gain.exponentialRampToValueAtTime(0.001,now+1.4);
-    bell.start(now+0.6); bell.stop(now+1.5);
-  }catch(e){}
-}
-
 // ── Render loop ───────────────────────────────────────────────────────────────
 let T=0, lastT=0, solveGen=0;
 const tapGlows=[], mergeGlows=[], colorCascades=[], vanishingRods=[];
 let renderedHues=[];
-const CASCADE_FADE=215;
-let lastMatchState=null,_lastMatchCheck=0;
+const CASCADE_FADE=312; // 240 * 1.3
+let lastMatchState=null;
 
 function render(now=0){
   requestAnimationFrame(render);
@@ -1025,7 +590,7 @@ function render(now=0){
   // 1. Update drawn rod progress
   for(const d of gs.drawn){
     if((d.progress??1)<1){
-      d.progress=Math.min(1,(d.progress??0)+dt/200);
+      d.progress=Math.min(1,(d.progress??0)+dt/576);
       if(d.progress>=1){
         d.progress=1;
         if(!d._cascadeFired){
@@ -1069,55 +634,6 @@ function render(now=0){
     ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(g.px,g.py,r,0,Math.PI*2); ctx.fill();
   }
   ctx.shadowBlur=0; ctx.restore();
-
-  // Hint glow
-  if(hintGlow){
-    const hn=performance.now();
-    const age=(hn-hintGlow.start)/hintGlow.dur;
-    if(age>=1){ hintGlow=null; }
-    else{
-      const pulse=0.55+0.45*Math.sin(hn*0.009);
-      const alpha=(1-age*0.6)*pulse*0.9;
-      ctx.save();
-      ctx.globalAlpha=alpha;
-      ctx.shadowColor='#ffe040';
-      ctx.shadowBlur=22*pulse;
-      ctx.strokeStyle='#ffe040';
-      ctx.lineWidth=3;
-      if(hintGlow.type==='rock'){
-        const rx0=hintGlow.rx0??((hintGlow.col)*CELL+4);
-        const rx1=hintGlow.rx1??(COLS*CELL-4);
-        const px=(rx0+rx1)/2;
-        const py=hintGlow.y*CELL;
-        ctx.beginPath(); ctx.arc(px,py,CELL*0.38,0,Math.PI*2); ctx.stroke();
-        ctx.globalAlpha=alpha*0.5;
-        ctx.fillStyle='#ffe040';
-        ctx.beginPath(); ctx.arc(px,py,CELL*0.1,0,Math.PI*2); ctx.fill();
-      } else {
-        const x0=hintGlow.c0*CELL+4, x1=hintGlow.c1*CELL-4;
-        const py=hintGlow.y*CELL;
-        const xMid=(x0+x1)/2;
-        // Dashed hint line
-        ctx.save();
-        ctx.setLineDash([8,5]);
-        ctx.lineWidth=3;
-        ctx.beginPath(); ctx.moveTo(x0,py); ctx.lineTo(x1,py); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-        // Vertical crosshair at exact pixel midpoint
-        ctx.lineWidth=2;
-        ctx.beginPath(); ctx.moveTo(xMid,py-CELL*0.4); ctx.lineTo(xMid,py+CELL*0.4); ctx.stroke();
-        // Circle centered on crosshair
-        ctx.shadowBlur=28*pulse;
-        ctx.lineWidth=2.5;
-        ctx.beginPath(); ctx.arc(xMid,py,CELL*0.2,0,Math.PI*2); ctx.stroke();
-      }
-      ctx.shadowBlur=0; ctx.restore();
-    }
-  }
-
-  // Tutorial finger overlay
-  if (tut && !tut.dismissed) tutDrawFinger(ctx, now);
 
   // 4. Activate new cascade entries after first draw (startTime sentinel)
   for(const casc of colorCascades){
@@ -1163,24 +679,18 @@ function render(now=0){
         gs.solved=true;
         gs.solveQueue=undefined;
         document.getElementById('nextBtn').disabled=false;
-        document.getElementById('hintBtn').disabled=true;
-        streak=0; saveStreak(0);
-        const par=getPar();
-        const msg=document.getElementById('msg');
-        msg.innerHTML=`<span class="stars">${starsStr(1)}</span> AUTO-SOLVED`;
-        msg.style.color='';
-        updateStats();
+        document.getElementById('msg').textContent='SOLVED!';
         cP.style.boxShadow=`0 0 0 2px #a259ff,0 0 40px #a259ff66`;
-        launchConfetti(false);
+        launchConfetti();
         playWin();
       }
     }
   }
 
-  // 6. Match check (throttled — no need to recompute hue maps every frame)
-  if(!gs.solved && !gs.autoSolving && now-_lastMatchCheck>120){
-    _lastMatchCheck=now;
+  // 6. Match check
+  if(!gs.solved && !gs.autoSolving){
     const curHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+    const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
     const matchKey=JSON.stringify(curHm);
     if(matchKey!==lastMatchState){
       lastMatchState=matchKey;
@@ -1208,7 +718,7 @@ function spawnCascade(y, dir, hmBefore, hmAfter){
     }
     const fromHue=renderedHues[c][r];
     const dist=dir==='down' ? r : (ROWS-1-r);
-    colorCascades.push({col:c,row:r,fromHue,toHue,_delay:dist*62,startTime:0});
+    colorCascades.push({col:c,row:r,fromHue,toHue,_delay:dist*109,startTime:0});
     affectedRows.add(r);
   }
   // Play staggered tones per row in cascade direction
@@ -1217,96 +727,54 @@ function spawnCascade(y, dir, hmBefore, hmAfter){
 
 // ── Vanish ────────────────────────────────────────────────────────────────────
 function spawnVanish(px0,py,px1,onComplete){
-  vanishingRods.push({px0,py,px1,start:performance.now(),dur:240,onComplete});
+  vanishingRods.push({px0,py,px1,start:performance.now(),dur:576,onComplete});
 }
 
 // ── Win check ─────────────────────────────────────────────────────────────────
 function checkWin(playerSolved){
-  // On tutorial level, completing a step advances tutorial instead of winning
-  if (isTutLevel) {
-    const ts = tutCurrentStep();
-    if (ts && ts.type === 'remove') {
-      setTimeout(() => tutAdvance(), 350);
-    } else if (ts && ts.type === 'draw') {
-      setTimeout(() => tutAdvance(), 350);
-    }
-    return;
-  }
   const curHm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
   const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
   if(hueMapsMatch(curHm,tgtHm)){
     gs.solved=true;
     document.getElementById('nextBtn').disabled=false;
-    document.getElementById('hintBtn').disabled=true;
-
-    const par=getPar();
-    const stars=getStars(moveCount,par);
-    const isPerfect=stars===3&&!usedUndo&&!usedHint;
-
-    saveBest(levelIdx,moveCount);
-    if(playerSolved){
-      if(!usedHint) streak++;
-      else streak=0;
-      saveStreak(streak);
-    }
-
-    const starsEl=`<span class="stars">${starsStr(stars)}</span>`;
-    const msg=document.getElementById('msg');
-    if(isPerfect){
-      msg.innerHTML=`${starsEl} PERFECT!`;
-      msg.style.color='#ffd700';
-    } else {
-      msg.innerHTML=`${starsEl} SOLVED!`;
-      msg.style.color='';
-    }
-
-    updateStats();
+    document.getElementById('msg').textContent='SOLVED!';
     cP.style.boxShadow=`0 0 0 2px #a259ff,0 0 40px #a259ff66`;
-    launchConfetti(isPerfect);
-    isPerfect ? playPerfect() : playWin();
+    launchConfetti();
+    playWin();
   }
 }
 
-// ── Hint ──────────────────────────────────────────────────────────────────────
-document.getElementById('hintBtn').addEventListener('click',()=>{
-  if(!gs||gs.solved||gs.autoSolving) return;
-  if(hintsLeft<=0) return;
-  // Find a remaining action to hint
-  const remainRemove=[...gs.toRemove].filter(k=>!gs.opened.has(k));
-  const remainDraw=gs.toDraw.filter(d=>!gs.drawn.find(dr=>dr.y===d.y&&dr.c0===d.c0&&dr.c1===d.c1&&(dr.progress??1)>=1&&!dr._vanishing));
-  if(!remainRemove.length&&!remainDraw.length) return;
-  hintsLeft--;
-  usedHint=true;
-  document.getElementById('hintBtn').textContent=`HINT(${hintsLeft})`;
-  if(hintsLeft===0) document.getElementById('hintBtn').disabled=true;
-  // Pick hint: prefer removes, fall back to draws
-  if(remainRemove.length){
-    const key=remainRemove[Math.floor(Math.random()*remainRemove.length)];
-    const [y,col]=key.split(',').map(Number);
-    // Compute the actual rod extent for this rock (same logic as drawBoard)
-    const activeRocks=gs.rocks.filter(r=>!gs.opened.has(`${r.y},${r.col}`));
-    const rowSegs=activeRocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
-    const segIdx=rowSegs.findIndex(r=>r.col===col);
-    const rx0=col*CELL+4;
-    const rx1=segIdx+1<rowSegs.length ? rowSegs[segIdx+1].col*CELL-4 : COLS*CELL-4;
-    hintGlow={type:'rock',key,y,col,rx0,rx1,start:performance.now(),dur:2400};
-  } else {
-    const d=remainDraw[0];
-    console.log('HINT ROD: y='+d.y+' c0='+d.c0+' c1='+d.c1+' cols covered: '+d.c0+' to '+(d.c1-1)+' center col: '+((d.c0+d.c1-1)/2));
-    hintGlow={type:'rod',y:d.y,c0:d.c0,c1:d.c1,start:performance.now(),dur:2400};
+// ── Solve ─────────────────────────────────────────────────────────────────────
+document.getElementById('solveBtn').addEventListener('click',()=>{
+  if(!gs||gs.solved) return;
+  gs.autoSolving=true;
+  gs.opened=new Set();
+  gs.drawn=[];
+  colorCascades.length=0;
+  vanishingRods.length=0;
+  const hm=cellHueMap(gs.rocks,gs.opened,gs.drawn);
+  renderedHues=hm.map(col=>[...col]);
+  solveGen++;
+  gs._solveGen=solveGen;
+  const removeSteps=[...gs.toRemove].map(k=>({type:'remove',key:k,y:parseInt(k)}));
+  const drawSteps=gs.toDraw.map(d=>({type:'draw',y:d.y,c0:d.c0,c1:d.c1}));
+  // Shuffle both arrays then interleave randomly — never purely top-to-bottom
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  shuffle(removeSteps); shuffle(drawSteps);
+  // Interleave: alternate remove/draw when possible
+  const queue=[];
+  const r=[...removeSteps], d=[...drawSteps];
+  while(r.length||d.length){
+    if(r.length&&d.length) (Math.random()<0.5?queue.push(r.shift()):queue.push(d.shift()));
+    else if(r.length) queue.push(r.shift());
+    else queue.push(d.shift());
   }
+  gs.solveQueue=queue;
 });
 
 // ── Commit draw ───────────────────────────────────────────────────────────────
-function commitDraw(y,c0,c1,rtl){
+function commitDraw(y,c0,c1){
   if(c1-c0<1) return;
-  // Tutorial: for draw step, only require correct row — accept any span
-  const tutStep = tutCurrentStep();
-  if (tutIsLocked() && tutStep && tutStep.type === 'draw') {
-    if (y !== tutStep.y) return;
-    // Accept any span on correct row — snap to full target span for clean result
-    c0 = tutStep.c0; c1 = tutStep.c1;
-  }
   const now=performance.now();
   const existing=gs.drawn.findIndex(d=>d.y===y&&d.c0===c0&&d.c1===c1);
   if(existing>=0){
@@ -1319,7 +787,7 @@ function commitDraw(y,c0,c1,rtl){
     playVanish();
   } else {
     // Add new rod — cascade fires AFTER sweep animation finishes
-  const newRod={y,c0,c1,progress:0,_cascadeFired:false,_rtl:arguments[3]===true};
+    const newRod={y,c0,c1,progress:0,_cascadeFired:false};
     newRod._cascadeCb=()=>{
       const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn.filter(d=>d!==newRod));
       const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
@@ -1328,7 +796,6 @@ function commitDraw(y,c0,c1,rtl){
     };
     gs.drawn.push(newRod);
     mergeGlows.push({px:(c0+c1)/2*CELL,py:y*CELL,t:now});
-    moveCount++; updateStats();
     playDraw();
   }
   tapGlows.push({px:(c0+c1)/2*CELL,py:y*CELL,t:now});
@@ -1376,10 +843,6 @@ function handleTap(col,row){
   const seg=segRockAt(activeRocks,bestY,icol);
   if(!seg) return;
   const key=`${bestY},${seg.col}`;
-
-  // Tutorial: block wrong moves on locked levels
-  const tutStep = tutCurrentStep();
-  if (tutIsLocked() && tutStep && tutStep.type === 'remove' && key !== tutStep.key) return;
   const segsAtY=gs.rocks.filter(r=>r.y===bestY).sort((a,b)=>a.col-b.col);
   const si=segsAtY.findIndex(s=>s.col===seg.col);
   const segEndCol=si+1<segsAtY.length?segsAtY[si+1].col-1:COLS-1;
@@ -1389,7 +852,6 @@ function handleTap(col,row){
   // Capture before, mutate, capture after, cascade
   const hmBefore=cellHueMap(gs.rocks,gs.opened,gs.drawn);
   gs.opened.add(key);
-  moveCount++; updateStats();
   const hmAfter=cellHueMap(gs.rocks,gs.opened,gs.drawn);
   spawnCascade(bestY,'up',hmBefore,hmAfter);
   spawnVanish(seg.col*CELL+1,bestY*CELL,(segEndCol+1)*CELL-1,()=>checkWin(true));
@@ -1400,9 +862,7 @@ function handleTap(col,row){
 let dragStart=null;
 function onTouchStart(e){
   e.preventDefault();
-  if(gs.autoSolving) return;
-  if(gs.solved && !(tut && !tut.dismissed && tutCurrentStep() && tutCurrentStep().type==='draw')) return;
-  hintGlow=null;
+  if(gs.solved||gs.autoSolving) return;
   const t=e.touches[0];
   const {col,row}=pxToCell(t.clientX,t.clientY);
   dragStart={col,row,moved:false,endCol:col,endRow:row};
@@ -1427,9 +887,8 @@ function onTouchEnd(e){
     const lo=Math.min(ds.col,ds.endCol);
     const hi=Math.max(ds.col,ds.endCol);
     const c0=Math.floor(lo);
-    const c1=Math.max(c0+1, Math.round(hi));
-    const rtl = ds.endCol < ds.col;
-    commitDraw(snapY,c0,c1,rtl);
+    const c1=Math.max(c0+1, Math.round(hi)); // round snaps at cell midpoint, not edge
+    commitDraw(snapY,c0,c1);
   } else {
     handleTap(ds.col,ds.row);
   }
@@ -1437,9 +896,7 @@ function onTouchEnd(e){
 
 let mouseDown=false, mouseStart=null;
 function onMouseDown(e){
-  if(gs.autoSolving) return;
-  if(gs.solved && !(tut && !tut.dismissed && tutCurrentStep() && tutCurrentStep().type==='draw')) return;
-  hintGlow=null;
+  if(gs.solved||gs.autoSolving) return;
   const {col,row}=pxToCell(e.clientX,e.clientY);
   mouseDown=true; mouseStart={col,row,moved:false,endCol:col,endRow:row};
 }
@@ -1462,8 +919,7 @@ function onMouseUp(e){
     const hi=Math.max(ms.col,ms.endCol);
     const c0=Math.floor(lo);
     const c1=Math.max(c0+1, Math.round(hi));
-    const rtl = ms.endCol < ms.col;
-    commitDraw(snapY,c0,c1,rtl);
+    commitDraw(snapY,c0,c1);
   } else {
     handleTap(ms.col,ms.row);
   }
@@ -1480,9 +936,6 @@ cP.addEventListener('mouseup',onMouseUp);
 document.getElementById('undoBtn').addEventListener('click',()=>{
   if(!gs||gs.solved||gs.autoSolving||tapHistory.length===0) return;
   const action=tapHistory.pop();
-  usedUndo=true;
-  moveCount=Math.max(0,moveCount-1);
-  updateStats();
   colorCascades.length=0;
   vanishingRods.length=0;
   if(action.startsWith('draw:')){
@@ -1499,9 +952,8 @@ document.getElementById('undoBtn').addEventListener('click',()=>{
   renderedHues=hm.map(col=>[...col]);
 });
 
-document.getElementById('resetBtn').addEventListener('click',()=>{ if(isTutLevel) initTutLevel(); else initLevel(levelIdx); });
+document.getElementById('resetBtn').addEventListener('click',()=>initLevel(levelIdx));
 document.getElementById('nextBtn').addEventListener('click',()=>{
-  document.getElementById('msg').style.color='';
   levelIdx=(levelIdx+1)%LEVELS.length;
   initLevel(levelIdx);
 });
@@ -1514,7 +966,7 @@ cctx.setTransform(DPR,0,0,DPR,0,0);
 
 let splashParticles=[];
 
-function launchConfetti(isPerfect){
+function launchConfetti(){
   splashParticles=[];
   // Get the play board rect
   const boardRect=cP.getBoundingClientRect();
@@ -1528,7 +980,7 @@ function launchConfetti(isPerfect){
 
   // Spawn particles from each tile, exploding outward
   for(let col=0;col<COLS;col++) for(let row=0;row<ROWS;row++){
-    const hue=isPerfect ? 45+Math.random()*30 : (hues[col]?.[row]??210);
+    const hue=hues[col]?.[row]??210;
     // tile center in screen coords
     const tx=boardX + (col+0.5)*(boardW/COLS);
     const ty=boardY + (row+0.5)*(boardH/ROWS);
@@ -1552,12 +1004,12 @@ function launchConfetti(isPerfect){
         size,
         hue,
         alpha:1,
-        decay:0.02+Math.random()*0.012,
-        gravity:0.18+Math.random()*0.1,
+        decay:0.012+Math.random()*0.01,
+        gravity:0.15+Math.random()*0.1,
         shape:Math.random()<0.6?'circle':'rect',
         rot:Math.random()*Math.PI*2,
-        rotV:(Math.random()-0.5)*0.25,
-        delay: (dist*0.22 + Math.random()*45), // tiles further out fire later
+        rotV:(Math.random()-0.5)*0.2,
+        delay: (dist*0.4 + Math.random()*80), // tiles further out fire later
         born: performance.now()
       });
     }
@@ -1595,18 +1047,8 @@ function updateConfetti(){
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-initTutLevel();
+initLevel(0);
 requestAnimationFrame(render);
-
-// Trap browser back button — send message to parent launcher instead of navigating away
-history.pushState({game:'waterflow'}, '');
-window.addEventListener('popstate', function() {
-  if(window.parent && window.parent !== window) {
-    window.parent.postMessage('back', '*');
-  } else {
-    history.pushState({game:'waterflow'}, '');
-  }
-});
 </script>
 </body>
 </html>

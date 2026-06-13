@@ -27,7 +27,7 @@ canvas{display:block;touch-action:none;-webkit-tap-highlight-color:transparent}
 .btn{background:transparent;border:1px solid rgba(255,255,255,.2);
   color:rgba(255,255,255,.6);font-family:'VT323',monospace;font-size:15px;
   letter-spacing:2px;padding:7px 11px;cursor:pointer;border-radius:1px;
-  transition:border-color .1s,color .1s,transform .06s;text-transform:uppercase;
+  transition:.12s;text-transform:uppercase;
   -webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .btn:hover{border-color:rgba(255,255,255,.5);color:#fff}
 .btn:active{transform:scale(.93)}
@@ -40,7 +40,7 @@ canvas{display:block;touch-action:none;-webkit-tap-highlight-color:transparent}
 #inspo{font-size:12px;letter-spacing:1px;color:rgba(255,255,255,.45);margin-top:2px;text-align:center;font-family:'VT323',monospace}
 #ov{position:fixed;inset:0;background:rgba(4,4,8,.96);display:flex;
   flex-direction:column;align-items:center;justify-content:center;
-  gap:14px;z-index:20;pointer-events:none;opacity:0;transition:.18s}
+  gap:14px;z-index:20;pointer-events:none;opacity:0;transition:.35s}
 #ov.show{opacity:1;pointer-events:all}
 .ov-big{font-size:54px;letter-spacing:6px;color:#44ff88;
   text-shadow:0 0 30px rgba(68,255,136,.8)}
@@ -450,19 +450,6 @@ function getAC() {
   return ac;
 }
 
-// iOS unlocks WebAudio only on touchend/click — the intro pads fire on
-// touchstart, which doesn't count, so prime on the first qualifying gesture.
-(function(){
-  const evs=['touchend','pointerup','click','keydown'];
-  function unlock(){
-    try{
-      const a=getAC();
-      if(a.state==='running') evs.forEach(ev=>document.removeEventListener(ev,unlock,true));
-    }catch(e){}
-  }
-  evs.forEach(ev=>document.addEventListener(ev,unlock,true));
-})();
-
 let _limiter = null;
 function getMaster() {
   getAC();
@@ -792,24 +779,8 @@ function playClick() {
   const a=getAC(), t=a.currentTime;
   const o=a.createOscillator(), g=a.createGain();
   o.frequency.value=1800; o.type='sine';
-  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.22,t+0.002);
-  g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
-  o.connect(g); g.connect(getMaster()); o.start(t); o.stop(t+0.06);
-  const o2=a.createOscillator(), g2=a.createGain();
-  o2.type='triangle'; o2.frequency.setValueAtTime(420,t);
-  o2.frequency.exponentialRampToValueAtTime(180,t+0.06);
-  g2.gain.setValueAtTime(0.0001,t); g2.gain.exponentialRampToValueAtTime(0.3,t+0.003);
-  g2.gain.exponentialRampToValueAtTime(0.001,t+0.08);
-  o2.connect(g2); g2.connect(getMaster()); o2.start(t); o2.stop(t+0.09);
-}
-
-function playSelect() {
-  const a=getAC(), t=a.currentTime;
-  const o=a.createOscillator(), g=a.createGain();
-  o.type='sine'; o.frequency.value=1200;
-  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.12,t+0.002);
-  g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
-  o.connect(g); g.connect(getMaster()); o.start(t); o.stop(t+0.05);
+  g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.035);
+  o.connect(g); g.connect(getMaster()); o.start(t); o.stop(t+0.04);
 }
 
 function playError() {
@@ -989,8 +960,6 @@ let undoStack=[];
 let sel=null;
 let drag=null;
 let isDragging=false;
-let swapAnims=[];
-const SWAP_MS=130;
 let hintActive=false;
 let hintTimer=null;
 let winState=false;
@@ -1012,7 +981,7 @@ function initLevel(idx) {
   hintBtn.textContent=`HINT(${_hints})`; hintBtn.style.opacity=''; hintBtn.style.pointerEvents='';
   document.getElementById('inspo').textContent = song ? `inspired by: ${song}` : '';
   resizeCanvas(idx < TUTORIAL_LEVELS);
-  undoStack=[]; sel=null; drag=null; isDragging=false; swapAnims=[];
+  undoStack=[]; sel=null; drag=null; isDragging=false;
   hintActive=false; if(hintTimer) clearTimeout(hintTimer);
   winState=false; winTs=0; winSwitchAtStep=-1;
   for(let r=0;r<ROWS;r++) hitGlow[r].fill(0);
@@ -1042,9 +1011,6 @@ function doMove(fr,fc,tr,tc) {
   const tmp=gs.grid[fr][fc];
   gs.grid[fr][fc]=gs.grid[tr][tc];
   gs.grid[tr][tc]=tmp;
-  const _n=performance.now();
-  swapAnims.push({r:fr,fromC:fc,toC:tc,t0:_n});
-  if(gs.grid[fr][fc]) swapAnims.push({r:fr,fromC:tc,toC:fc,t0:_n});
   gs.moves++;
   document.getElementById('mvDisp').textContent=`MOVES ${gs.moves}`;
   playClick();
@@ -1069,7 +1035,6 @@ function nextLevel() {
 
 function doUndo() {
   if(!undoStack.length||gs.won) return;
-  swapAnims=[];
   gs.grid=undoStack.pop();
   gs.moves=Math.max(0,gs.moves-1);
   document.getElementById('mvDisp').textContent=`MOVES ${gs.moves}`;
@@ -1229,8 +1194,6 @@ function draw(ts) {
     ctx.fillText('YOURS  ↓', 2, divY+DIV_H/2);
     ctx.letterSpacing='0px';
   }
-  swapAnims=swapAnims.filter(a=>ts-a.t0<SWAP_MS);
-  const _animSkip=new Set(swapAnims.map(a=>a.r+','+a.toC));
   for(let r=0;r<ROWS;r++){
     const y=MAIN_Y+r*CELL_H;
     const inst=INST[r];
@@ -1284,7 +1247,6 @@ function draw(ts) {
         }
       }
       if(drag&&drag.r===r&&drag.c===c) continue;
-      if(_animSkip.has(r+','+c)) continue;
       if(gs.grid[r][c]){
         const glow=hitGlow[r][c];
         const isSelected=!!(sel&&sel.r===r&&sel.c===c);
@@ -1295,18 +1257,6 @@ function draw(ts) {
       }
     }
   }
-  swapAnims.forEach(a=>{
-    if(!gs.grid[a.r][a.toC]) return;
-    const p=1-Math.pow(1-Math.min(1,(ts-a.t0)/SWAP_MS),3);
-    const x=LABEL_W+(a.fromC+(a.toC-a.fromC)*p)*CELL_W;
-    const y=MAIN_Y+a.r*CELL_H;
-    const cx2=x+CELL_W/2, cy2=y+CELL_H/2;
-    const pop=1+0.12*Math.sin(p*Math.PI);
-    ctx.save();
-    ctx.translate(cx2,cy2); ctx.scale(pop,pop); ctx.translate(-cx2,-cy2);
-    drawBeatToken(x,y,CELL_W,CELL_H,INST[a.r],0.5,false,false,undefined);
-    ctx.restore();
-  });
   if(ac && schedIv && ac.currentTime >= stepOriginTime){
     const now=ac.currentTime;
     const elapsed=now-stepOriginTime;
@@ -1396,7 +1346,7 @@ function onMove(e){
   if(ac && ac.currentTime < targetEndAudioTime) return;
   const pos=getPos(e);
   drag.x=pos.x; drag.y=pos.y;
-  if(!isDragging&&Math.abs(pos.x-ptStart.x)>DRAG_THRESH){isDragging=true;playSelect();}
+  if(Math.abs(pos.x-ptStart.x)>DRAG_THRESH) isDragging=true;
 }
 
 function onUp(e){
@@ -1411,7 +1361,7 @@ function onUp(e){
     if(gs.grid[r][c]){
       if(sel&&sel.r===r&&sel.c===c) sel=null;
       else if(sel&&sel.r===r) doMove(sel.r,sel.c,r,c);
-      else { sel={r,c}; playSelect(); }
+      else sel={r,c};
     } else {
       if(sel&&sel.r===r) doMove(sel.r,sel.c,r,c);
       else { playError(); sel=null; }

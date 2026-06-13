@@ -87,7 +87,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050508;display:flex
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: rgba(0,0,4,0.88); backdrop-filter: blur(8px);
-    z-index: 10; gap: 10px; opacity: 0; pointer-events: none; transition: opacity 0.16s ease;
+    z-index: 10; gap: 10px; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
   }
 
   .overlay.show { opacity: 1; pointer-events: all; }
@@ -157,7 +157,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050508;display:flex
     color:rgba(255,200,0,0.9); font-family:'Nunito',sans-serif; font-size:12px;
     font-weight:700; padding:8px 18px; border-radius:20px; text-align:center;
     white-space:normal; pointer-events:none; text-align:center;
-    opacity:0; transition:opacity 0.18s;
+    opacity:0; transition:opacity 0.3s;
     max-width:300px;
   }
 
@@ -237,7 +237,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050508;display:flex
 
 body{max-width:680px;margin:0.25rem auto 2rem;border-radius:16px;overflow:hidden;border:1px solid rgba(0,229,255,0.2);box-shadow:0 0 40px rgba(0,0,0,0.2);background:#050508;height:fit-content;display:block;padding-top:20px;}
 /* Override game body styles that leak out */
-#game-wrapper{min-height:unset!important;height:auto!important;overflow:hidden!important;padding:16px 12px 16px 52px!important;display:flex!important;flex-direction:column!important;align-items:center!important;}
+#game-wrapper{min-height:unset!important;height:auto!important;overflow:hidden!important;padding:16px 12px 16px!important;display:flex!important;flex-direction:column!important;align-items:center!important;}
 body{background:#050508;display:flex;flex-direction:column;align-items:stretch;}
 /* Ensure canvas fills width responsively */
 .game-outer-wrap{}
@@ -316,54 +316,6 @@ function getAC() {
   }
   if (_sharedAC.state === 'suspended') _sharedAC.resume();
   return _sharedAC;
-}
-// Single limiter bus — keeps stacked kick/boom/spring sounds from clipping
-let _masterBus = null;
-function getMaster() {
-  const ac = getAC();
-  if (!_masterBus || _masterBus.context !== ac) {
-    _masterBus = ac.createDynamicsCompressor();
-    _masterBus.threshold.value = -8; _masterBus.knee.value = 4; _masterBus.ratio.value = 12;
-    _masterBus.attack.value = 0.002; _masterBus.release.value = 0.08;
-    _masterBus.connect(ac.destination);
-  }
-  return _masterBus;
-}
-// iOS unlocks WebAudio only on a full gesture (touchend/click) — touchstart,
-// pointerdown and swipe-moves don't count. Since kicks fire mid-swipe, prime
-// the context on the first qualifying gesture or round 1 plays silent on iPhone.
-(function () {
-  const evs = ['touchend', 'pointerup', 'click', 'keydown'];
-  function unlock() {
-    try {
-      const a = getAC();
-      if (a.state === 'running') { evs.forEach(ev => document.removeEventListener(ev, unlock, true)); }
-    } catch (e) {}
-  }
-  evs.forEach(ev => document.addEventListener(ev, unlock, true));
-})();
-function playGoalSound() {
-  try {
-    const ac = getAC();
-    [523, 659, 784, 1047, 1319].forEach((f, i) => {
-      const t = ac.currentTime + i * 0.06;
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = 'triangle'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.3, t + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-      o.connect(g); g.connect(getMaster()); o.start(t); o.stop(t + 0.35);
-    });
-    const sub = ac.createOscillator(), sg = ac.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(150, ac.currentTime);
-    sub.frequency.exponentialRampToValueAtTime(50, ac.currentTime + 0.22);
-    sg.gain.setValueAtTime(0.0001, ac.currentTime);
-    sg.gain.exponentialRampToValueAtTime(0.5, ac.currentTime + 0.005);
-    sg.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3);
-    sub.connect(sg); sg.connect(getMaster());
-    sub.start(ac.currentTime); sub.stop(ac.currentTime + 0.32);
-  } catch(e) {}
 }
 
 // ── Quaternion math ───────────────────────────────────────────────────────
@@ -542,7 +494,7 @@ function drawMirrors(now) {
     let bendAmt = 0;
     if (springAnim && springAnim.col === m.col && springAnim.row === m.row) {
       const elapsed = t - springAnim.startTime;
-      const COMPRESS = 100, RELEASE = 250;
+      const COMPRESS = 150, RELEASE = 350;
       if (elapsed < COMPRESS) {
         // Compress: bend grows
         const tp = elapsed / COMPRESS;
@@ -908,29 +860,10 @@ function drawFootball(col, row, quat, scale) {
   ctx.restore();
 }
 
-// Static round scenery (field/obstacles/water/mud) captured once per round
-// instead of rebuilding its gradients every frame.
-let _staticLayer = null, _staticKey = '';
-function drawStaticLayer() {
-  const key = W + 'x' + H + '|' +
-    gs.obstacles.map(o => o.col + ',' + o.row).join(';') + '|' +
-    gs.waters.map(w => w.col + ',' + w.row).join(';') + '|' +
-    gs.muds.map(m => m.col + ',' + m.row).join(';');
-  if (key !== _staticKey) {
-    drawField(); drawObstacles(); drawWater(); drawMuds();
-    if (!_staticLayer) _staticLayer = document.createElement('canvas');
-    _staticLayer.width = canvas.width; _staticLayer.height = canvas.height;
-    _staticLayer.getContext('2d').drawImage(canvas, 0, 0);
-    _staticKey = key;
-  } else {
-    ctx.drawImage(_staticLayer, 0, 0, W, H);
-  }
-}
-
 function draw(now) {
   try {
   ctx.clearRect(0, 0, W, H);
-  drawStaticLayer(); drawMirrors(now); drawBombs(now); drawBlackHoles(now); drawNet(now);
+  drawField(); drawObstacles(); drawWater(); drawMirrors(now); drawMuds(); drawBombs(now); drawBlackHoles(now); drawNet(now);
   // Draw all non-active balls first (behind active ball)
   gs.balls.forEach((b, i) => {
     if (!b.visible) return;
@@ -971,7 +904,7 @@ function stopPulse() {
 function triggerWallJiggle(ball, dir, ballIdx, onDone) {
   const STEP = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
   const dx = STEP[dir][0], dy = STEP[dir][1];
-  const DURATION = 190;
+  const DURATION = 260;
   const start = performance.now();
   const origCol = ball.col, origRow = ball.row;
   const JIGGLE = 0.13;
@@ -1001,7 +934,7 @@ function triggerWallJiggle(ball, dir, ballIdx, onDone) {
 function triggerCollisionJiggle(ballA, ballB, dir, ballIdx, onDone) {
   const STEP = { right:[1,0], left:[-1,0], up:[0,-1], down:[0,1] };
   const dx = STEP[dir][0], dy = STEP[dir][1];
-  const DURATION = 230;
+  const DURATION = 320;
   const start = performance.now();
   const origAcol = ballA.col, origArow = ballA.row;
   const origBcol = ballB.col, origBrow = ballB.row;
@@ -1060,7 +993,7 @@ function triggerExplosion(col, row, ballIdx) {
     const thudGain = ac.createGain();
     thudGain.gain.setValueAtTime(3.5, ac.currentTime);
     thudGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
-    thud.connect(thudGain); thudGain.connect(getMaster());
+    thud.connect(thudGain); thudGain.connect(ac.destination);
     thud.start(); thud.stop(ac.currentTime + 0.7);
 
     const boomFilter = ac.createBiquadFilter();
@@ -1073,7 +1006,7 @@ function triggerExplosion(col, row, ballIdx) {
     boomGain.gain.setValueAtTime(4.0, ac.currentTime);
     boomGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1.1);
 
-    noise.connect(boomFilter); boomFilter.connect(boomGain); boomGain.connect(getMaster());
+    noise.connect(boomFilter); boomFilter.connect(boomGain); boomGain.connect(ac.destination);
     noise.start();
 
     // Layer 2: mid crack — short sharp noise burst
@@ -1092,7 +1025,7 @@ function triggerExplosion(col, row, ballIdx) {
     crackGain.gain.setValueAtTime(1.4, ac.currentTime);
     crackGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
 
-    crack.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(getMaster());
+    crack.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(ac.destination);
     crack.start();
 
     // Layer 3: debris rattle — fading mid-high noise tail
@@ -1112,7 +1045,7 @@ function triggerExplosion(col, row, ballIdx) {
     rattleGain.gain.linearRampToValueAtTime(0.6, ac.currentTime + 0.04);
     rattleGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
 
-    rattle.connect(rattleFilter); rattleFilter.connect(rattleGain); rattleGain.connect(getMaster());
+    rattle.connect(rattleFilter); rattleFilter.connect(rattleGain); rattleGain.connect(ac.destination);
     rattle.start();
 
   } catch(e) {}
@@ -1280,7 +1213,7 @@ function triggerBlackhole(bhCol, bhRow, ballIdx) {
     noiseGain.gain.linearRampToValueAtTime(1.4, ac.currentTime + 0.4);
     noiseGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.55); // abrupt cut
 
-    noise.connect(bp); bp.connect(noiseGain); noiseGain.connect(getMaster());
+    noise.connect(bp); bp.connect(noiseGain); noiseGain.connect(ac.destination);
     noise.start();
 
     // Layer 2: second bandpass for the "hollow tube" resonance
@@ -1300,7 +1233,7 @@ function triggerBlackhole(bhCol, bhRow, ballIdx) {
     gain2.gain.setValueAtTime(0.3, ac.currentTime);
     gain2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
 
-    noise2.connect(bp2); bp2.connect(gain2); gain2.connect(getMaster());
+    noise2.connect(bp2); bp2.connect(gain2); gain2.connect(ac.destination);
     noise2.start();
   } catch(e) {}
   stopPulse();
@@ -1309,7 +1242,7 @@ function triggerBlackhole(bhCol, bhRow, ballIdx) {
   if (bhBall) bhBall.visible = false; // skip in getNearestBallIdx immediately
   const startX = bhBall ? bhBall.col : bhCol, startY = bhBall ? bhBall.row : bhRow;
   const targetX = bhCol, targetY = bhRow;
-  const duration = 720;
+  const duration = 900;
   const startTime = performance.now();
   const startQ = (gs.balls[ballIdx]?.quat || [0,0,0,1]).slice();
 
@@ -1398,7 +1331,6 @@ let pendingBallIdx = -1;         // which ball the pending kick is for
 
 function onPointerDown(e) {
   if (e.type === 'mousedown' && usingTouch) return;
-  if (e.type === 'mousedown' && e.button !== 0) return;
   if (e.cancelable) e.preventDefault();
   if (e.touches) usingTouch = true;
   gs.hasInteracted = true;
@@ -1479,7 +1411,6 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
   if (e.type === 'mouseup' && usingTouch) return;
-  if (e.type === 'mouseup' && e.button !== 0) return;
   if (e.cancelable) e.preventDefault();
   // Fire on release if swipe didn't fire during move
   if (!swipeFired && touchStart) {
@@ -1595,7 +1526,7 @@ function playKickSound() {
     gain.gain.setValueAtTime(3.5, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
-    noise.connect(bpf); bpf.connect(gain); gain.connect(getMaster());
+    noise.connect(bpf); bpf.connect(gain); gain.connect(ac.destination);
     noise.start(t);
 
     // Subtle low thud beneath the thwack
@@ -1606,7 +1537,7 @@ function playKickSound() {
     const og = ac.createGain();
     og.gain.setValueAtTime(1.8, t);
     og.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-    osc.connect(og); og.connect(getMaster());
+    osc.connect(og); og.connect(ac.destination);
     osc.start(t); osc.stop(t + 0.12);
   } catch(e) {}
 }
@@ -1636,7 +1567,7 @@ function playMudSound() {
     sqGain.gain.linearRampToValueAtTime(2.8, t + 0.04);
     sqGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
-    squelch.connect(bpf); bpf.connect(sqGain); sqGain.connect(getMaster());
+    squelch.connect(bpf); bpf.connect(sqGain); sqGain.connect(ac.destination);
     squelch.start(t);
 
     // Layer 2: heavy dull thud (foot hitting mud) — low sine
@@ -1647,7 +1578,7 @@ function playMudSound() {
     const thudGain = ac.createGain();
     thudGain.gain.setValueAtTime(2.5, t);
     thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-    thud.connect(thudGain); thudGain.connect(getMaster());
+    thud.connect(thudGain); thudGain.connect(ac.destination);
     thud.start(t); thud.stop(t + 0.25);
 
     // Layer 3: short sticky pop (mud releasing) — delayed slightly
@@ -1662,7 +1593,7 @@ function playMudSound() {
     const popGain = ac.createGain();
     popGain.gain.setValueAtTime(1.4, t + 0.12);
     popGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    pop.connect(popLpf); popLpf.connect(popGain); popGain.connect(getMaster());
+    pop.connect(popLpf); popLpf.connect(popGain); popGain.connect(ac.destination);
     pop.start(t + 0.12);
   } catch(e) {}
 }
@@ -1947,7 +1878,7 @@ function animateSegments(segments, outcome, kickedBallIdx, computeStep) {
           kickedBall.scored = true;
           gs.animatingSet.delete(kickedBallIdx);
           draw();
-          setTimeout(showWin, 380);
+          setTimeout(showWin, 500);
         }
       } else {
         gs.animatingSet.delete(kickedBallIdx);
@@ -1973,8 +1904,8 @@ function animateSegments(segments, outcome, kickedBallIdx, computeStep) {
 
     // Short distance = slower ball, faster spin; long distance = faster ball, normal spin
     const totalAngle = distPx / ballR * SPIN_MULT;
-    const msPer = Math.min(110, 50 + 60 / distCells);
-    const duration = Math.max(150, distCells * msPer);
+    const msPer = Math.min(150, 67 + 83 / distCells);
+    const duration = Math.max(200, distCells * msPer);
     const [ax,ay,az] = SPIN_AXES[dir] || SPIN_AXES.right;
     const startQ = kickedBall.quat.slice();
     const endQ = qNorm(qMul(qAxis(ax, ay, az, totalAngle), startQ));
@@ -2029,7 +1960,7 @@ function animateSegments(segments, outcome, kickedBallIdx, computeStep) {
               const g = ac.createGain();
               g.gain.setValueAtTime(0.5, ac.currentTime);
               g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
-              osc.connect(g); g.connect(getMaster());
+              osc.connect(g); g.connect(ac.destination);
               osc.start(); osc.stop(ac.currentTime + 0.4);
               // High harmonic layer — metallic ping
               const osc2 = ac.createOscillator();
@@ -2039,11 +1970,11 @@ function animateSegments(segments, outcome, kickedBallIdx, computeStep) {
               const g2 = ac.createGain();
               g2.gain.setValueAtTime(0.18, ac.currentTime);
               g2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
-              osc2.connect(g2); g2.connect(getMaster());
+              osc2.connect(g2); g2.connect(ac.destination);
               osc2.start(); osc2.stop(ac.currentTime + 0.25);
             } catch(e) {}
             // Keep drawing during compress phase, then launch next segment
-            const compressMs = 100;
+            const compressMs = 150;
             const compressStart = performance.now();
             function holdAtMirror(now) {
               draw(now);
@@ -2087,7 +2018,7 @@ function launchConfetti() {
       pulse: Math.random() * Math.PI * 2,
       pulseV: 0.12 + Math.random() * 0.1,
       life: 1,
-      decay: 0.013 + Math.random() * 0.009,
+      decay: 0.008 + Math.random() * 0.006,
       cw: cw, ch: ch
     });
   }
@@ -2115,7 +2046,7 @@ function runConfetti() {
   confettiPieces.forEach(p => {
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += 0.12; // gravity
+    p.vy += 0.08; // gravity
     p.vx *= 0.99;
     p.rot += p.rotV;
     p.pulse += p.pulseV;
@@ -2157,7 +2088,6 @@ function showWin() {
   ctx.clearRect(0, 0, canvas.width / DPR, canvas.height / DPR);
   if (navigator.vibrate) navigator.vibrate([60, 30, 60]);
   launchConfetti();
-  playGoalSound();
   gs.score++;
   document.getElementById('score-display').textContent = gs.score;
   document.getElementById('win-sub').textContent = `Round ${gs.round} complete!`;
@@ -7492,8 +7422,8 @@ document.getElementById('rewind-btn').addEventListener('click', () => {
     const distCells = Math.max(1, Math.abs(toC-fromC) + Math.abs(toR-fromR));
     const ballR = CELL * 0.41;
     const distPx = distCells * CELL;
-    const msPer = Math.min(110, 50 + 60 / distCells);
-    const duration = Math.max(150, distCells * msPer);
+    const msPer = Math.min(150, 67 + 83 / distCells);
+    const duration = Math.max(200, distCells * msPer);
     const totalAngle = distPx / ballR * SPIN_MULT;
     const [fax, fay, faz] = SPIN_AXES[dir] || SPIN_AXES.right;
     const rax = -fax, ray = -fay, raz = -faz;
@@ -7531,39 +7461,6 @@ gs.puzzleMode = true;
 setupRound(1);
 
 
-
 </script>
-
-<script>
-(function(){
-  var btn = document.createElement('a');
-  btn.href = 'index.html';
-  btn.innerHTML = '&#8592;';
-  btn.style.cssText = [
-    'position:fixed',
-    'top:max(env(safe-area-inset-top,0px),10px)',
-    'left:10px',
-    'z-index:2147483647',
-    'width:36px',
-    'height:36px',
-    'border-radius:50%',
-    'background:rgba(0,0,0,0.6)',
-    'border:1px solid rgba(255,255,255,0.2)',
-    'display:flex',
-    'align-items:center',
-    'justify-content:center',
-    'color:rgba(255,255,255,0.85)',
-    'font-size:18px',
-    'text-decoration:none',
-    'font-family:sans-serif',
-    'line-height:1',
-    '-webkit-backdrop-filter:blur(8px)',
-    'backdrop-filter:blur(8px)',
-  ].join(';');
-  // Append to documentElement to escape body overflow:hidden clipping
-  document.documentElement.appendChild(btn);
-})();
-</script>
-
 </body>
 </html>
