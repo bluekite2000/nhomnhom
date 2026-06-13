@@ -496,7 +496,9 @@ let _tutAdvancing = false;
 function tutAdvance() {
   if (!tut || tut.dismissed || _tutAdvancing) return;
   _tutAdvancing = true;
-  setTimeout(() => { _tutAdvancing = false; }, 800);
+  // Just long enough to swallow a double-fire (touch+click / repeated checkWin),
+  // but not so long it eats the next deliberate NEXT tap.
+  setTimeout(() => { _tutAdvancing = false; }, 200);
   document.getElementById('tut-bubble')?.remove();
   document.getElementById('tut-dim')?.remove();
   document.getElementById('tut-target-dim')?.remove();
@@ -524,14 +526,46 @@ function tutIsLocked() {
   return s && s.locked;
 }
 
+// Shared hint visual — used by both the HINT button and the tutorial so the
+// "tap this rod" / "draw across here" prompts look identical.
+//   kind 'rock': pulsing ring + dot over a rod to remove   geo={px,py}
+//   kind 'rod' : dashed line + crosshair + ring to draw    geo={x0,x1,xMid,py}
+function drawHintIndicator(c, kind, geo, pulse, alpha) {
+  c.save();
+  c.globalAlpha = alpha;
+  c.shadowColor = '#ffe040';
+  c.shadowBlur = 22 * pulse;
+  c.strokeStyle = '#ffe040';
+  c.lineWidth = 3;
+  if (kind === 'rock') {
+    c.beginPath(); c.arc(geo.px, geo.py, CELL * 0.38, 0, Math.PI * 2); c.stroke();
+    c.globalAlpha = alpha * 0.5;
+    c.fillStyle = '#ffe040';
+    c.beginPath(); c.arc(geo.px, geo.py, CELL * 0.1, 0, Math.PI * 2); c.fill();
+  } else {
+    c.save();
+    c.setLineDash([8, 5]);
+    c.lineWidth = 3;
+    c.beginPath(); c.moveTo(geo.x0, geo.py); c.lineTo(geo.x1, geo.py); c.stroke();
+    c.setLineDash([]);
+    c.restore();
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(geo.xMid, geo.py - CELL * 0.4); c.lineTo(geo.xMid, geo.py + CELL * 0.4); c.stroke();
+    c.shadowBlur = 28 * pulse;
+    c.lineWidth = 2.5;
+    c.beginPath(); c.arc(geo.xMid, geo.py, CELL * 0.2, 0, Math.PI * 2); c.stroke();
+  }
+  c.shadowBlur = 0; c.restore();
+}
+
 function tutDrawFinger(ctx, now) {
   if (!tut || tut.dismissed) return;
   const step = tutCurrentStep();
   if (!step || step.type === 'explain') return;
 
-  const pulse = 0.5 + 0.5 * Math.sin(now * 0.004);
-
-  ctx.save();
+  // Same pulse + visual as the HINT button
+  const pulse = 0.55 + 0.45 * Math.sin(now * 0.009);
+  const alpha = pulse * 0.9;
 
   if (step.type === 'remove') {
     const [ry, rcol] = step.key.split(',').map(Number);
@@ -540,42 +574,11 @@ function tutDrawFinger(ctx, now) {
     const si = rowSegs.findIndex(r => r.col === rcol);
     const rx0 = rcol * CELL + 4;
     const rx1 = si + 1 < rowSegs.length ? rowSegs[si + 1].col * CELL - 4 : COLS * CELL - 4;
-    const px = (rx0 + rx1) / 2;
-    const py = ry * CELL;
-
-    // Expanding pulse rings — no finger
-    ctx.shadowColor = 'rgba(255,200,0,1)';
-    ctx.shadowBlur = 20 * pulse;
-    ctx.strokeStyle = `rgba(255,200,0,${0.5 + 0.5 * pulse})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(px, py, CELL * 0.38 + pulse * 8, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(255,200,0,${0.2 * pulse})`;
-    ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.arc(px, py, CELL * 0.38 + pulse * 8 + 8, 0, Math.PI * 2); ctx.stroke();
-
+    drawHintIndicator(ctx, 'rock', { px: (rx0 + rx1) / 2, py: ry * CELL }, pulse, alpha);
   } else if (step.type === 'draw') {
     const x0 = step.c0 * CELL + 4, x1 = step.c1 * CELL - 4;
-    const py = step.y * CELL;
-    const rodLen = x1 - x0;
-    const dashLen = 14, gapLen = 8, cycleLen = dashLen + gapLen;
-
-    // Animated running dash: offset moves left→right over time
-    const offset = -((now / 30) % cycleLen);
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(68,255,136,0.9)';
-    ctx.shadowBlur = 14 * pulse;
-    ctx.strokeStyle = `rgba(68,255,136,${0.6 + 0.3 * pulse})`;
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = offset;
-    ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(x1, py); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
+    drawHintIndicator(ctx, 'rod', { x0, x1, xMid: (x0 + x1) / 2, py: step.y * CELL }, pulse, alpha);
   }
-
-  ctx.restore();
 }
 
 function drawTargetBoard(){
@@ -1005,7 +1008,7 @@ function render(now=0){
   }
   ctx.shadowBlur=0; ctx.restore();
 
-  // Hint glow
+  // Hint glow — same visual as the tutorial prompts (drawHintIndicator)
   if(hintGlow){
     const hn=performance.now();
     const age=(hn-hintGlow.start)/hintGlow.dur;
@@ -1013,41 +1016,14 @@ function render(now=0){
     else{
       const pulse=0.55+0.45*Math.sin(hn*0.009);
       const alpha=(1-age*0.6)*pulse*0.9;
-      ctx.save();
-      ctx.globalAlpha=alpha;
-      ctx.shadowColor='#ffe040';
-      ctx.shadowBlur=22*pulse;
-      ctx.strokeStyle='#ffe040';
-      ctx.lineWidth=3;
       if(hintGlow.type==='rock'){
         const rx0=hintGlow.rx0??((hintGlow.col)*CELL+4);
         const rx1=hintGlow.rx1??(COLS*CELL-4);
-        const px=(rx0+rx1)/2;
-        const py=hintGlow.y*CELL;
-        ctx.beginPath(); ctx.arc(px,py,CELL*0.38,0,Math.PI*2); ctx.stroke();
-        ctx.globalAlpha=alpha*0.5;
-        ctx.fillStyle='#ffe040';
-        ctx.beginPath(); ctx.arc(px,py,CELL*0.1,0,Math.PI*2); ctx.fill();
+        drawHintIndicator(ctx,'rock',{px:(rx0+rx1)/2,py:hintGlow.y*CELL},pulse,alpha);
       } else {
         const x0=hintGlow.c0*CELL+4, x1=hintGlow.c1*CELL-4;
-        const py=hintGlow.y*CELL;
-        const xMid=(x0+x1)/2;
-        // Dashed hint line
-        ctx.save();
-        ctx.setLineDash([8,5]);
-        ctx.lineWidth=3;
-        ctx.beginPath(); ctx.moveTo(x0,py); ctx.lineTo(x1,py); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-        // Vertical crosshair at exact pixel midpoint
-        ctx.lineWidth=2;
-        ctx.beginPath(); ctx.moveTo(xMid,py-CELL*0.4); ctx.lineTo(xMid,py+CELL*0.4); ctx.stroke();
-        // Circle centered on crosshair
-        ctx.shadowBlur=28*pulse;
-        ctx.lineWidth=2.5;
-        ctx.beginPath(); ctx.arc(xMid,py,CELL*0.2,0,Math.PI*2); ctx.stroke();
+        drawHintIndicator(ctx,'rod',{x0,x1,xMid:(x0+x1)/2,py:hintGlow.y*CELL},pulse,alpha);
       }
-      ctx.shadowBlur=0; ctx.restore();
     }
   }
 
@@ -1203,20 +1179,49 @@ function checkWin(playerSolved){
 }
 
 // ── Hint ──────────────────────────────────────────────────────────────────────
+// Pick the next hint on a MINIMUM-length path to the target, so hints are
+// always optimal even when a level's data lists redundant moves. Returns the
+// single move to surface ({t:'R',key} or {t:'D',d}) or null if already solved.
+function nextOptimalMove(){
+  const remMoves=[];
+  for(const k of gs.toRemove) if(!gs.opened.has(k)) remMoves.push({t:'R',key:k});
+  for(const d of gs.toDraw) if(!gs.drawn.find(dr=>dr.y===d.y&&dr.c0===d.c0&&dr.c1===d.c1&&(dr.progress??1)>=1&&!dr._vanishing)) remMoves.push({t:'D',d});
+  if(!remMoves.length) return null;
+  const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
+  const baseDrawn=gs.drawn.filter(dr=>(dr.progress??1)>=1&&!dr._vanishing);
+  const applied=(sub)=>{
+    const o=new Set(gs.opened), dr=baseDrawn.slice();
+    for(const m of sub){ if(m.t==='R') o.add(m.key); else dr.push({y:m.d.y,c0:m.d.c0,c1:m.d.c1,progress:1}); }
+    return cellHueMap(gs.rocks,o,dr);
+  };
+  if(hueMapsMatch(applied([]),tgtHm)) return null; // already at target
+  // Smallest subset of remaining moves that reaches the target
+  let chosen=null;
+  for(let k=1;k<=remMoves.length&&!chosen;k++){
+    const idx=[...Array(k).keys()];
+    while(true){
+      const sub=idx.map(i=>remMoves[i]);
+      if(hueMapsMatch(applied(sub),tgtHm)){ chosen=sub; break; }
+      let i=k-1; while(i>=0&&idx[i]===remMoves.length-k+i)i--;
+      if(i<0)break; idx[i]++; for(let j=i+1;j<k;j++)idx[j]=idx[j-1]+1;
+    }
+  }
+  if(!chosen) chosen=remMoves;
+  // Surface a removal first (clear obstacles), else a draw
+  return chosen.find(m=>m.t==='R')||chosen[0];
+}
+
 document.getElementById('hintBtn').addEventListener('click',()=>{
   if(!gs||gs.solved||gs.autoSolving) return;
   if(hintsLeft<=0) return;
-  // Find a remaining action to hint
-  const remainRemove=[...gs.toRemove].filter(k=>!gs.opened.has(k));
-  const remainDraw=gs.toDraw.filter(d=>!gs.drawn.find(dr=>dr.y===d.y&&dr.c0===d.c0&&dr.c1===d.c1&&(dr.progress??1)>=1&&!dr._vanishing));
-  if(!remainRemove.length&&!remainDraw.length) return;
+  const pick=nextOptimalMove();
+  if(!pick) return;
   hintsLeft--;
   usedHint=true;
   document.getElementById('hintBtn').textContent=`HINT(${hintsLeft})`;
   if(hintsLeft===0) document.getElementById('hintBtn').disabled=true;
-  // Pick hint: prefer removes, fall back to draws
-  if(remainRemove.length){
-    const key=remainRemove[Math.floor(Math.random()*remainRemove.length)];
+  if(pick.t==='R'){
+    const key=pick.key;
     const [y,col]=key.split(',').map(Number);
     // Compute the actual rod extent for this rock (same logic as drawBoard)
     const activeRocks=gs.rocks.filter(r=>!gs.opened.has(`${r.y},${r.col}`));
@@ -1226,8 +1231,7 @@ document.getElementById('hintBtn').addEventListener('click',()=>{
     const rx1=segIdx+1<rowSegs.length ? rowSegs[segIdx+1].col*CELL-4 : COLS*CELL-4;
     hintGlow={type:'rock',key,y,col,rx0,rx1,start:performance.now(),dur:2400};
   } else {
-    const d=remainDraw[0];
-    console.log('HINT ROD: y='+d.y+' c0='+d.c0+' c1='+d.c1+' cols covered: '+d.c0+' to '+(d.c1-1)+' center col: '+((d.c0+d.c1-1)/2));
+    const d=pick.d;
     hintGlow={type:'rod',y:d.y,c0:d.c0,c1:d.c1,start:performance.now(),dur:2400};
   }
 });
