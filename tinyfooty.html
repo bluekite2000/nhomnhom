@@ -330,14 +330,24 @@ function getMaster() {
   return _masterBus;
 }
 // Prime/unlock WebAudio on the FIRST gesture event. A kick fires mid-swipe (on
-// touchmove), so we must unlock on touchstart/pointerdown — by touchend it's too
-// late and round 1 plays into a suspended context (silent on iPhone). Creating
-// the context inside a touchstart handler starts it running on iOS.
+// touchmove), in the SAME gesture as the unlock — so resume() alone (async) is
+// too late and the first kick plays into a still-suspended context (its clock
+// hasn't started, so the sound is dropped: silent on iPhone). Fix: on the first
+// gesture, synchronously play a 1-frame silent buffer to force the audio session
+// on right now, then resume. We listen on touchstart/pointerdown (earliest) so
+// this happens before the kick later in the same swipe.
 (function () {
   const evs = ['touchstart', 'pointerdown', 'touchend', 'pointerup', 'click', 'keydown'];
   function unlock() {
     try {
       const a = getAC();
+      if (!a._warmed) {
+        const b = a.createBuffer(1, 1, 22050);
+        const s = a.createBufferSource();
+        s.buffer = b; s.connect(a.destination); s.start(0);
+        a._warmed = true;
+      }
+      if (a.state === 'suspended') a.resume();
       if (a.state === 'running') { evs.forEach(ev => document.removeEventListener(ev, unlock, true)); }
     } catch (e) {}
   }
