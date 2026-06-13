@@ -253,11 +253,32 @@ body{background:#050508;display:flex;flex-direction:column;align-items:stretch;}
 /* Fullscreen override */
 body{margin:0!important;border-radius:0!important;border:none!important;width:100vw!important;height:100vh!important;max-width:none!important;overflow:hidden;padding-top:env(safe-area-inset-top,0px)!important;padding-bottom:env(safe-area-inset-bottom,0px)!important;box-sizing:border-box!important;}
 #game-wrapper{height:calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;}
+/* Tap-to-start gate — a discrete tap unlocks WebAudio on iOS (swipes don't). */
+#start-gate{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;cursor:pointer;
+  background:radial-gradient(ellipse 70% 50% at 50% 45%,rgba(77,240,144,0.10) 0%,rgba(0,4,2,0.94) 70%);
+  -webkit-tap-highlight-color:transparent;transition:opacity 0.2s ease;}
+#start-gate.hide{opacity:0;pointer-events:none;}
+#start-gate .sg-title{font-family:'Nunito',sans-serif;font-size:38px;font-weight:900;
+  letter-spacing:4px;text-transform:uppercase;color:#4df090;
+  text-shadow:0 0 28px rgba(77,240,144,0.7),0 0 64px rgba(77,240,144,0.3);}
+#start-gate .sg-how{font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;
+  letter-spacing:1px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.7;
+  max-width:280px;padding:0 24px;}
+#start-gate .sg-sub{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;
+  letter-spacing:5px;text-transform:uppercase;color:#4df090;margin-top:6px;
+  animation:sgpulse 1.3s ease-in-out infinite;}
+@keyframes sgpulse{0%,100%{opacity:0.5}50%{opacity:1}}
 </style>
 
 </style>
 </head>
 <body>
+<div id="start-gate">
+  <div class="sg-title">TINY FOOTY</div>
+  <div class="sg-how">Swipe a ball to kick it.<br>Get one ball into the net to win.</div>
+  <div class="sg-sub">▶ Tap to start</div>
+</div>
 <div id="game-wrapper">
   <div id="hud" style="display:none;">
     <div class="hud-item">
@@ -7563,6 +7584,30 @@ document.getElementById('hud').style.display='flex';
 document.getElementById('game-btns').style.display='flex';
 gs.puzzleMode = true;
 setupRound(1);
+
+// ── Tap-to-start gate ──────────────────────────────────────────────────────
+// Gameplay is swipe-based, and iOS only unlocks WebAudio on a DISCRETE tap/click
+// (a swipe doesn't count), so the first kick was always silent. One tap here
+// unlocks audio (silent-buffer warmup + resume) before play begins.
+(function(){
+  var ov = document.getElementById('start-gate');
+  if(!ov) return;
+  function start(e){
+    if(e && e.cancelable) e.preventDefault();
+    try{
+      var a = getAC();
+      var b = a.createBuffer(1,1,22050), s = a.createBufferSource();
+      s.buffer = b; s.connect(a.destination); s.start(0);
+      if(a.state === 'suspended') a.resume();
+    }catch(err){}
+    ov.removeEventListener('click', start);
+    ov.removeEventListener('touchend', start);
+    ov.classList.add('hide');
+    setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); }, 260);
+  }
+  ov.addEventListener('touchend', start, {passive:false});
+  ov.addEventListener('click', start);
+})();
 
 
 
