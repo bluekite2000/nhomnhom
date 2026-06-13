@@ -34,26 +34,32 @@ html,body{background:#1a1a18;display:flex;flex-direction:column;align-items:cent
 canvas{display:block;touch-action:none;border-radius:3px;
   box-shadow:0 4px 40px #00000088,0 0 0 2px #2a3a20,0 0 0 4px #111310}
 .foot{font-size:8px;color:#3a4a28;letter-spacing:2px}
-/* Tap-to-start gate — a discrete tap unlocks WebAudio on iOS (drags don't). */
-#start-gate{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:16px;cursor:pointer;
-  background:radial-gradient(ellipse 70% 50% at 50% 45%,rgba(118,185,0,0.10) 0%,rgba(8,12,6,0.96) 70%);
+/* Tap-to-start gate — popup card over the dimmed level (a discrete tap unlocks
+   iOS WebAudio, which drags don't). */
+#start-gate{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;background:rgba(6,9,5,0.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
   -webkit-tap-highlight-color:transparent;transition:opacity .2s ease}
 #start-gate.hide{opacity:0;pointer-events:none}
-#start-gate .sg-title{font-family:'VT323',monospace;font-size:46px;letter-spacing:8px;
-  color:#76b900;text-shadow:0 0 12px #76b90077,0 0 30px #76b90044}
+#start-gate .sg-card{display:flex;flex-direction:column;align-items:center;gap:12px;
+  margin:0 24px;max-width:320px;padding:24px 28px;border-radius:14px;
+  background:rgba(10,16,8,0.94);border:2px solid rgba(118,185,0,0.6);
+  box-shadow:0 0 36px rgba(118,185,0,0.22),0 10px 44px rgba(0,0,0,0.65)}
+#start-gate .sg-title{font-family:'VT323',monospace;font-size:42px;letter-spacing:7px;
+  color:#76b900;text-shadow:0 0 12px #76b90088,0 0 30px #76b90044}
 #start-gate .sg-how{font-family:'Share Tech Mono',monospace;font-size:14px;
-  color:rgba(200,216,176,0.72);text-align:center;line-height:1.7;max-width:280px;padding:0 24px}
+  color:rgba(200,216,176,0.82);text-align:center;line-height:1.7}
 #start-gate .sg-sub{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:4px;
-  text-transform:uppercase;color:#76b900;margin-top:6px;animation:sgpulse 1.3s ease-in-out infinite}
+  text-transform:uppercase;color:#76b900;margin-top:4px;animation:sgpulse 1.3s ease-in-out infinite}
 @keyframes sgpulse{0%,100%{opacity:.5}50%{opacity:1}}
 </style>
 </head>
 <body>
 <div id="start-gate">
-  <div class="sg-title">UNTANGLE ME</div>
-  <div class="sg-how">Drag the chips so none of the wires cross.</div>
-  <div class="sg-sub">▶ Tap to start</div>
+  <div class="sg-card">
+    <div class="sg-title">UNTANGLE ME</div>
+    <div class="sg-how">Drag the chips so none of the wires cross.</div>
+    <div class="sg-sub">▶ Tap to start</div>
+  </div>
 </div>
 <div class="wrap">
   <div class="title">UNTANGLE ME</div>
