@@ -193,7 +193,7 @@ const LEVELS=[
   {rocks:[{y:2,col:1},{y:3,col:3},{y:3,col:2},{y:4,col:0},{y:2,col:4},{y:1,col:2},{y:4,col:4},{y:1,col:1},{y:1,col:0}],toRemove:['4,0','2,1','2,4'],toDraw:[{y:3,c0:1,c1:2}]},
   {rocks:[{y:2,col:0},{y:2,col:1},{y:4,col:1},{y:1,col:4},{y:4,col:2},{y:3,col:1},{y:4,col:0},{y:2,col:2},{y:3,col:4}],toRemove:['4,0','4,1','2,0'],toDraw:[{y:1,c0:2,c1:3}]},
   {rocks:[{y:3,col:2},{y:4,col:4},{y:4,col:3},{y:2,col:4},{y:4,col:2},{y:1,col:3},{y:1,col:0},{y:3,col:4},{y:3,col:0},{y:1,col:1}],toRemove:['1,0','3,0','3,2'],toDraw:[{y:2,c0:0,c1:5},{y:4,c0:0,c1:4}]},
-  {rocks:[{y:3,col:1},{y:4,col:3},{y:1,col:4},{y:3,col:3},{y:3,col:4},{y:1,col:1},{y:1,col:0},{y:4,col:1},{y:3,col:0},{y:2,col:1}],toRemove:['4,3','4,1'],toDraw:[{y:2,c0:0,c1:1},{y:4,c0:1,c1:3}]},
+  {rocks:[{y:3,col:1},{y:4,col:3},{y:1,col:4},{y:3,col:3},{y:3,col:4},{y:1,col:1},{y:1,col:0},{y:4,col:1},{y:3,col:0},{y:2,col:1}],toRemove:['4,3'],toDraw:[{y:2,c0:0,c1:1}]},
   {rocks:[{y:3,col:3},{y:2,col:2},{y:1,col:3},{y:1,col:1},{y:4,col:3},{y:2,col:1},{y:4,col:2},{y:1,col:2},{y:2,col:0},{y:1,col:4}],toRemove:['1,1','2,0'],toDraw:[{y:3,c0:1,c1:3},{y:4,c0:0,c1:2}]},
   {rocks:[{y:3,col:1},{y:3,col:4},{y:4,col:3},{y:4,col:4},{y:2,col:2},{y:2,col:1},{y:4,col:1},{y:4,col:0},{y:1,col:0},{y:2,col:4}],toRemove:['2,1','1,0','2,2','3,1'],toDraw:[{y:3,c0:3,c1:4}]},
   {rocks:[{y:2,col:2},{y:3,col:1},{y:4,col:3},{y:3,col:4},{y:4,col:0},{y:3,col:3},{y:4,col:2},{y:1,col:4},{y:1,col:1},{y:2,col:1}],toRemove:['2,1','2,2','4,0'],toDraw:[{y:3,c0:0,c1:4},{y:4,c0:1,c1:5}]},
@@ -336,12 +336,15 @@ function segRockAt(rocks,y,col){
 // Each column is independent: find walls in that column, create bands, assign hue by band start row
 function cellHueMap(rocks, opened, drawn){
   const hm=[];
-  const activeRocks=rocks.filter(r=>!opened.has(`${r.y},${r.col}`));
   for(let col=0;col<COLS;col++){
     hm[col]=[];
     const walls=new Set();
     for(let y=1;y<ROWS;y++){
-      if(segRockAt(activeRocks,y,col)) walls.add(y);
+      // A rod's span is anchored to the ORIGINAL layout: each rock owns the
+      // columns from its own column up to the next rock. Removing a rock clears
+      // exactly its own span (a gap) — the neighbour does NOT stretch to refill.
+      const owner=segRockAt(rocks,y,col);
+      if(owner && !opened.has(`${owner.y},${owner.col}`)) walls.add(y);
     }
     for(const d of drawn){
       if((d.progress??1)<1) continue;
@@ -771,16 +774,18 @@ function drawBoard(c, rocks, opened, drawn, T, showSparkles=false, showCascades=
 
   if(!showRods) return;
 
-  // Gold rods (removable)
-  const activeRocks=rocks.filter(r=>!opened.has(`${r.y},${r.col}`));
+  // Gold rods (removable). Span anchored to the original layout: each rock is
+  // drawn from its own column to the NEXT rock's column; removed rocks are
+  // skipped, leaving a real gap (no neighbour stretching to refill).
   c.save();
   c.lineCap='round';
   for(let y=1;y<ROWS;y++){
-    const segs=activeRocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
+    const segs=rocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
     if(!segs.length) continue;
     for(let i=0;i<segs.length;i++){
       const seg=segs[i];
-      const x0=seg.col*CELL+4, x1=i+1<segs.length?(segs[i+1].col)*CELL-4:COLS*CELL-4;
+      if(opened.has(`${seg.y},${seg.col}`)) continue;  // removed → leave a gap
+      const x0=seg.col*CELL+4, x1=(i+1<segs.length?(segs[i+1].col)*CELL:COLS*CELL)-4;
       const py=y*CELL;
       const pulse=0.5+0.5*Math.sin(T*2.5+y*0.9);
       // Wide soft aura
@@ -1205,32 +1210,52 @@ function checkWin(playerSolved){
 // always optimal even when a level's data lists redundant moves. Returns the
 // single move to surface ({t:'R',key} or {t:'D',d}) or null if already solved.
 function nextOptimalMove(){
-  const remMoves=[];
-  for(const k of gs.toRemove) if(!gs.opened.has(k)) remMoves.push({t:'R',key:k});
-  for(const d of gs.toDraw) if(!gs.drawn.find(dr=>dr.y===d.y&&dr.c0===d.c0&&dr.c1===d.c1&&(dr.progress??1)>=1&&!dr._vanishing)) remMoves.push({t:'D',d});
-  if(!remMoves.length) return null;
-  const tgtHm=cellHueMap(gs.rocks,gs.toRemove,gs.targetDrawn);
-  const baseDrawn=gs.drawn.filter(dr=>(dr.progress??1)>=1&&!dr._vanishing);
-  const applied=(sub)=>{
-    const o=new Set(gs.opened), dr=baseDrawn.slice();
-    for(const m of sub){ if(m.t==='R') o.add(m.key); else dr.push({y:m.d.y,c0:m.d.c0,c1:m.d.c1,progress:1}); }
-    return cellHueMap(gs.rocks,o,dr);
-  };
-  if(hueMapsMatch(applied([]),tgtHm)) return null; // already at target
-  // Smallest subset of remaining moves that reaches the target
-  let chosen=null;
-  for(let k=1;k<=remMoves.length&&!chosen;k++){
-    const idx=[...Array(k).keys()];
-    while(true){
-      const sub=idx.map(i=>remMoves[i]);
-      if(hueMapsMatch(applied(sub),tgtHm)){ chosen=sub; break; }
-      let i=k-1; while(i>=0&&idx[i]===remMoves.length-k+i)i--;
-      if(i<0)break; idx[i]++; for(let j=i+1;j<k;j++)idx[j]=idx[j-1]+1;
+  // State-aware hint: find the fewest moves from the CURRENT board to the target,
+  // over the full move space (remove a rock / draw a rod / remove a drawn rod).
+  // Rows are independent, so solve the first mismatched row and surface one move.
+  // Works no matter what the player has already added or removed (no reset needed).
+  const tgtOpened=new Set(gs.toRemove);
+  const rowWall=(y,openedSet,drawnList)=>{
+    let s='';
+    for(let col=0;col<COLS;col++){
+      let w=false;
+      const o=segRockAt(gs.rocks,y,col);
+      if(o&&!openedSet.has(`${o.y},${o.col}`)) w=true;
+      if(!w) for(const d of drawnList){ if(d.y===y&&col>=d.c0&&col<d.c1&&(d.progress??1)>=1&&!d._vanishing){ w=true; break; } }
+      s+=w?'1':'0';
     }
+    return s;
+  };
+  const committed=gs.drawn.filter(d=>(d.progress??1)>=1&&!d._vanishing);
+  for(let y=1;y<ROWS;y++){
+    const tw=rowWall(y,tgtOpened,gs.targetDrawn);
+    if(rowWall(y,gs.opened,committed)===tw) continue; // this row already matches
+    const acts=[];
+    for(const r of gs.rocks) if(r.y===y&&!gs.opened.has(`${r.y},${r.col}`)) acts.push({t:'R',key:`${r.y},${r.col}`});
+    for(const d of committed) if(d.y===y) acts.push({t:'X',rod:d});
+    for(let c0=0;c0<COLS;c0++) for(let c1=c0+1;c1<=COLS;c1++) acts.push({t:'D',c0,c1});
+    const apply=(sub)=>{
+      const o=new Set(gs.opened); let dr=committed.slice();
+      for(const m of sub){ if(m.t==='R')o.add(m.key); else if(m.t==='X')dr=dr.filter(d=>d!==m.rod); else dr=dr.concat([{y,c0:m.c0,c1:m.c1,progress:1}]); }
+      return rowWall(y,o,dr);
+    };
+    let chosen=null;
+    for(let k=1;k<=4&&!chosen;k++){
+      const idx=[...Array(k).keys()];
+      while(true){
+        if(apply(idx.map(i=>acts[i]))===tw){ chosen=idx.map(i=>acts[i]); break; }
+        let i=k-1; while(i>=0&&idx[i]===acts.length-k+i)i--;
+        if(i<0)break; idx[i]++; for(let j=i+1;j<k;j++)idx[j]=idx[j-1]+1;
+      }
+    }
+    if(!chosen) continue;
+    // Surface a removal first (rock or wrong drawn rod), else the draw.
+    const pick=chosen.find(m=>m.t==='R')||chosen.find(m=>m.t==='X')||chosen.find(m=>m.t==='D')||chosen[0];
+    if(pick.t==='D') return {t:'D',d:{y,c0:pick.c0,c1:pick.c1}};
+    if(pick.t==='X') return {t:'X',rod:pick.rod};
+    return {t:'R',key:pick.key};
   }
-  if(!chosen) chosen=remMoves;
-  // Surface a removal first (clear obstacles), else a draw
-  return chosen.find(m=>m.t==='R')||chosen[0];
+  return null;
 }
 
 document.getElementById('hintBtn').addEventListener('click',()=>{
@@ -1243,16 +1268,20 @@ document.getElementById('hintBtn').addEventListener('click',()=>{
   document.getElementById('hintBtn').textContent=`HINT(${hintsLeft})`;
   if(hintsLeft===0) document.getElementById('hintBtn').disabled=true;
   if(pick.t==='R'){
-    const key=pick.key;
-    const [y,col]=key.split(',').map(Number);
-    // Compute the actual rod extent for this rock (same logic as drawBoard)
-    const activeRocks=gs.rocks.filter(r=>!gs.opened.has(`${r.y},${r.col}`));
-    const rowSegs=activeRocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
+    // Rod extent anchored to the original layout (next rock in the full set).
+    const [y,col]=pick.key.split(',').map(Number);
+    const rowSegs=gs.rocks.filter(r=>r.y===y).sort((a,b)=>a.col-b.col);
     const segIdx=rowSegs.findIndex(r=>r.col===col);
     const rx0=col*CELL+4;
-    const rx1=segIdx+1<rowSegs.length ? rowSegs[segIdx+1].col*CELL-4 : COLS*CELL-4;
-    hintGlow={type:'rock',key,y,col,rx0,rx1,start:performance.now(),dur:2400};
+    const rx1=(segIdx+1<rowSegs.length ? rowSegs[segIdx+1].col*CELL : COLS*CELL)-4;
+    hintGlow={type:'rock',y,col,rx0,rx1,start:performance.now(),dur:2400};
+  } else if(pick.t==='X'){
+    // Remove a wrongly-drawn rod — mark it with the same "remove" indicator.
+    const d=pick.rod;
+    hintGlow={type:'rock',y:d.y,rx0:d.c0*CELL+4,rx1:d.c1*CELL-4,start:performance.now(),dur:2400};
   } else {
+    // Draw the still-missing span (the search already returns the minimal span,
+    // so after a partial draw this points at the remainder).
     const d=pick.d;
     hintGlow={type:'rod',y:d.y,c0:d.c0,c1:d.c1,start:performance.now(),dur:2400};
   }
@@ -1324,18 +1353,19 @@ function handleTap(col,row){
     }
   }
 
-  // Tap gold rod to remove
-  const activeRocks=gs.rocks.filter(r=>!gs.opened.has(`${r.y},${r.col}`));
+  // Tap gold rod to remove. Use the original-layout owner of the tapped column
+  // so taps map to the rod actually drawn there; a tap on an already-removed
+  // span (a gap) does nothing.
   let bestY=null, bestDist=0.6;
   for(let y=1;y<ROWS;y++){
-    const s=segRockAt(activeRocks,y,icol);
-    if(!s) continue;
+    const s=segRockAt(gs.rocks,y,icol);
+    if(!s || gs.opened.has(`${s.y},${s.col}`)) continue;
     const d=Math.abs(y-row);
     if(d<bestDist){bestDist=d; bestY=y;}
   }
   if(bestY===null) return;
-  const seg=segRockAt(activeRocks,bestY,icol);
-  if(!seg) return;
+  const seg=segRockAt(gs.rocks,bestY,icol);
+  if(!seg || gs.opened.has(`${seg.y},${seg.col}`)) return;
   const key=`${bestY},${seg.col}`;
 
   // Tutorial: block wrong moves on locked levels
