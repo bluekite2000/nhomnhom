@@ -259,16 +259,26 @@ body{margin:0!important;border-radius:0!important;border:none!important;width:10
   cursor:pointer;background:rgba(0,2,1,0.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
   -webkit-tap-highlight-color:transparent;transition:opacity 0.2s ease;}
 #start-gate.hide{opacity:0;pointer-events:none;}
-#start-gate .sg-card{display:flex;flex-direction:column;align-items:center;gap:12px;
-  margin:0 24px;max-width:320px;padding:24px 28px;border-radius:16px;
-  background:rgba(6,10,7,0.92);border:2px solid rgba(77,240,144,0.6);
-  box-shadow:0 0 36px rgba(77,240,144,0.22),0 10px 44px rgba(0,0,0,0.65);}
-#start-gate .sg-title{font-family:'Nunito',sans-serif;font-size:34px;font-weight:900;
-  letter-spacing:3px;text-transform:uppercase;color:#4df090;text-shadow:0 0 20px rgba(77,240,144,0.6);}
+#start-gate .sg-card{display:flex;flex-direction:column;align-items:center;gap:14px;
+  margin:0 24px;max-width:340px;padding:28px 32px;border-radius:18px;
+  background:radial-gradient(ellipse 130% 90% at 50% 0%,rgba(0,229,255,0.10),rgba(6,8,14,0.95) 72%);
+  border:2px solid rgba(0,229,255,0.6);
+  box-shadow:0 0 42px rgba(0,229,255,0.22),0 0 100px rgba(180,79,255,0.08),0 10px 44px rgba(0,0,0,0.7);}
+#start-gate .sg-title{font-family:'Nunito',sans-serif;font-size:38px;font-weight:900;
+  letter-spacing:3px;text-transform:uppercase;color:#fff;
+  text-shadow:0 0 30px var(--cyan),0 0 60px rgba(0,229,255,0.45);}
+/* Bouncing balls in the game's signature cyan */
+#start-gate .sg-motif{display:flex;align-items:center;gap:13px;margin-top:-2px;}
+#start-gate .sg-orb{width:14px;height:14px;border-radius:50%;
+  background:#00e5ff;box-shadow:0 0 13px rgba(0,229,255,0.85);
+  animation:sgbob 1.4s ease-in-out infinite;}
+#start-gate .sg-orb.p{animation-delay:.18s;}
+#start-gate .sg-orb.k{animation-delay:.36s;}
+@keyframes sgbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 #start-gate .sg-how{font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;
   color:rgba(255,255,255,0.78);text-align:center;line-height:1.7;}
 #start-gate .sg-sub{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;
-  letter-spacing:4px;text-transform:uppercase;color:#4df090;margin-top:4px;
+  letter-spacing:4px;text-transform:uppercase;color:#00e5ff;margin-top:4px;
   animation:sgpulse 1.3s ease-in-out infinite;}
 @keyframes sgpulse{0%,100%{opacity:0.5}50%{opacity:1}}
 </style>
@@ -279,6 +289,7 @@ body{margin:0!important;border-radius:0!important;border:none!important;width:10
 <div id="start-gate">
   <div class="sg-card">
     <div class="sg-title">TINY FOOTY</div>
+    <div class="sg-motif"><span class="sg-orb c"></span><span class="sg-orb p"></span><span class="sg-orb k"></span></div>
     <div class="sg-how">Swipe a ball to kick it.<br>Get one ball into the net to win.</div>
     <div class="sg-sub">▶ Tap to start</div>
   </div>
@@ -471,8 +482,10 @@ const DPR = window.devicePixelRatio || 1;
 function resize() {
   const container = document.querySelector('.game-embed-live') || document.body;
   const containerW = container.clientWidth || window.innerWidth;
-  const maxW = Math.min(window.innerWidth - 20, window.innerHeight - 200, 360);
-  CELL = Math.floor(maxW / COLS);
+  // Grow the field to fill the viewport on big screens (clamp cell size so it
+  // doesn't get cartoonishly large on huge monitors).
+  const maxW = Math.min(window.innerWidth - 40, window.innerHeight - 200);
+  CELL = Math.min(Math.floor(maxW / COLS), 120);
   W = CELL * COLS; H = CELL * ROWS;
   canvas.width = W * DPR; canvas.height = H * DPR;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
@@ -2150,11 +2163,15 @@ function runConfetti() {
     if (fc) fc.appendChild(cc);
   }
   const container = document.getElementById('field-container');
-  cc.width = container ? container.offsetWidth : W;
-  cc.height = container ? container.offsetHeight : H;
+  const cdpr = window.devicePixelRatio || 1;
+  const cw = container ? container.offsetWidth : W;
+  const ch = container ? container.offsetHeight : H;
+  cc.width = Math.round(cw * cdpr);
+  cc.height = Math.round(ch * cdpr);
   const cx2 = cc.getContext('2d');
+  cx2.setTransform(cdpr, 0, 0, cdpr, 0, 0); // render particles at full device resolution
 
-  cx2.clearRect(0, 0, cc.width, cc.height);
+  cx2.clearRect(0, 0, cw, ch);
 
   confettiPieces.forEach(p => {
     p.x += p.vx;

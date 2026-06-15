@@ -13,7 +13,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
 html,body{background:#020d18;display:flex;flex-direction:column;align-items:center;
-  justify-content:flex-start;min-height:100vh;font-family:'Share Tech Mono',monospace;
+  justify-content:center;min-height:100vh;font-family:'Share Tech Mono',monospace;
   color:#ffffff;user-select:none;overflow:hidden;touch-action:none;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;}
 
@@ -25,8 +25,13 @@ html,body{background:#020d18;display:flex;flex-direction:column;align-items:cent
   letter-spacing:4px;line-height:1;
   filter:drop-shadow(0 0 18px rgba(162,89,255,0.55)) drop-shadow(0 0 6px rgba(79,195,247,0.3))}
 
-.boards{display:flex;gap:10px;align-items:flex-start}
+.boards{display:flex;flex-direction:column;gap:4px;align-items:center}
 .board-wrap{display:flex;flex-direction:row;align-items:center;gap:4px;width:100%;justify-content:center;}
+/* Wide screens: show TARGET and YOURS side-by-side so each board can be bigger */
+@media (min-width:760px) and (orientation:landscape){
+  .boards{flex-direction:row;gap:28px;align-items:center}
+  .board-wrap{width:auto}
+}
 .board-label{font-size:18px;letter-spacing:4px;color:#ffffff;font-weight:bold;
   text-shadow:0 0 10px rgba(162,89,255,0.6);
   writing-mode:vertical-rl;transform:rotate(180deg);
@@ -84,6 +89,7 @@ canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
 <body>
 <div class="wrap">
   <div class="title">WATERFLOW</div>
+  <div class="boards" id="boards">
   <div class="board-wrap">
     <div class="board-label">TARGET</div>
     <canvas id="cTarget"></canvas>
@@ -93,6 +99,7 @@ canvas{display:block;touch-action:none;border-radius:8px;will-change:transform;
     <div class="board-label">YOURS</div>
     <canvas id="cPlay"></canvas>
     <div class="board-spacer"></div>
+  </div>
   </div>
   <div class="stats-bar">
     <span id="levelInfo">LEVEL 1/50</span>
@@ -120,21 +127,36 @@ const _safeBot=parseInt(getComputedStyle(document.documentElement).getPropertyVa
 // UI budget: title~18 + stats~20 + buttons~36 + gaps~16 + board gap~8 = ~98px
 const _uiHeight=98;
 const _labelW=32; // vertical label width
-const _availH=window.innerHeight-_safeTop-_safeBot;
-const _byHeight=Math.floor((_availH-_uiHeight)/(2*ROWS));
-const _byWidth=Math.floor((window.innerWidth-64)/COLS);
-const CELL=Math.min(_byHeight,_byWidth);
-const W=COLS*CELL,H=ROWS*CELL;
 const HUES=[210,30,160,260,340];
 
 const cT=document.getElementById('cTarget'), tctx=cT.getContext('2d');
 const cP=document.getElementById('cPlay'),   ctx=cP.getContext('2d');
-for(const cv of [cT,cP]){
-  cv.width=W*DPR; cv.height=H*DPR;
-  cv.style.width=W+'px'; cv.style.height=H+'px';
+
+let CELL,W,H;
+function applySize(){
+  const availH=window.innerHeight-_safeTop-_safeBot;
+  // On wide landscape screens the two boards sit side-by-side, so height only has
+  // to fit ONE board (×ROWS) and width has to fit TWO — lets each board grow big.
+  const sideBySide=window.innerWidth>=760 && window.innerWidth>window.innerHeight;
+  const byHeight=Math.floor((availH-_uiHeight)/((sideBySide?1:2)*ROWS));
+  const byWidth=Math.floor((window.innerWidth-(sideBySide?140:64))/((sideBySide?2:1)*COLS));
+  CELL=Math.max(20,Math.min(byHeight,byWidth,120));
+  W=COLS*CELL; H=ROWS*CELL;
+  for(const cv of [cT,cP]){
+    cv.width=W*DPR; cv.height=H*DPR;
+    cv.style.width=W+'px'; cv.style.height=H+'px';
+  }
+  tctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-tctx.setTransform(DPR,0,0,DPR,0,0);
-ctx.setTransform(DPR,0,0,DPR,0,0);
+applySize();
+// The render loop redraws both boards every frame, so a recompute is all we need.
+// Also re-anchor the tutorial dim/bubble (positioned from the live canvas rect)
+// so it doesn't get left behind as a stray grey box after a resize.
+window.addEventListener('resize',function(){
+  applySize();
+  if(typeof showTutBubble==='function') showTutBubble();
+});
 
 // ── Levels ────────────────────────────────────────────────────────────────────
 const LEVELS=[
@@ -1447,9 +1469,13 @@ document.getElementById('nextBtn').addEventListener('click',()=>{
 
 // ── Color Burst Splash ────────────────────────────────────────────────────────
 const cc=document.getElementById('confetti'), cctx=cc.getContext('2d');
-cc.width=innerWidth*DPR; cc.height=innerHeight*DPR;
-cc.style.width=innerWidth+'px'; cc.style.height=innerHeight+'px';
-cctx.setTransform(DPR,0,0,DPR,0,0);
+function sizeConfetti(){
+  cc.width=innerWidth*DPR; cc.height=innerHeight*DPR;
+  cc.style.width=innerWidth+'px'; cc.style.height=innerHeight+'px';
+  cctx.setTransform(DPR,0,0,DPR,0,0);
+}
+sizeConfetti();
+window.addEventListener('resize',sizeConfetti);
 
 let splashParticles=[];
 

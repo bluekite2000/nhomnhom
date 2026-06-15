@@ -58,12 +58,24 @@ canvas { display: block; will-change: transform; }
   cursor:pointer;background:rgba(0,0,6,0.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
   -webkit-tap-highlight-color:transparent;transition:opacity .2s ease;font-family:'Nunito',sans-serif}
 #start-gate.hide{opacity:0;pointer-events:none}
-#start-gate .sg-card{display:flex;flex-direction:column;align-items:center;gap:12px;
-  margin:0 24px;max-width:320px;padding:24px 28px;border-radius:16px;
-  background:rgba(4,6,12,0.92);border:2px solid rgba(0,229,255,0.55);
-  box-shadow:0 0 36px rgba(0,229,255,0.2),0 10px 44px rgba(0,0,0,0.65)}
-#start-gate .sg-title{font-size:36px;font-weight:900;letter-spacing:3px;text-transform:uppercase;
+#start-gate .sg-card{display:flex;flex-direction:column;align-items:center;gap:14px;
+  margin:0 24px;max-width:340px;padding:28px 32px;border-radius:18px;
+  background:radial-gradient(ellipse 130% 90% at 50% 0%,rgba(0,229,255,0.12),rgba(4,6,12,0.95) 72%);
+  border:2px solid rgba(0,229,255,0.55);
+  box-shadow:0 0 42px rgba(0,229,255,0.25),0 0 100px rgba(255,213,74,0.06),0 10px 44px rgba(0,0,0,0.7)}
+#start-gate .sg-title{font-size:40px;font-weight:900;letter-spacing:3px;text-transform:uppercase;
   color:#fff;text-shadow:0 0 22px #00e5ff,0 0 50px rgba(0,229,255,0.4)}
+/* Arcade flavor: a yellow pac chomping along a row of dots (one cherry) */
+#start-gate .sg-motif{display:flex;align-items:center;gap:11px;height:24px;margin-top:-2px}
+#start-gate .sg-pac{width:24px;height:24px;border-radius:50%;background:#ffd54a;
+  box-shadow:0 0 18px rgba(255,213,74,0.8);
+  clip-path:polygon(100% 30%,48% 50%,100% 70%,100% 100%,0 100%,0 0,100% 0);
+  animation:sgchomp 0.45s ease-in-out infinite}
+#start-gate .sg-dot{width:8px;height:8px;border-radius:50%;background:#00e5ff;
+  box-shadow:0 0 9px rgba(0,229,255,0.85)}
+#start-gate .sg-dot.cherry{background:#ff2255;box-shadow:0 0 9px rgba(255,34,85,0.85)}
+@keyframes sgchomp{0%,100%{clip-path:polygon(100% 30%,48% 50%,100% 70%,100% 100%,0 100%,0 0,100% 0)}
+  50%{clip-path:polygon(100% 48%,48% 50%,100% 52%,100% 100%,0 100%,0 0,100% 0)}}
 #start-gate .sg-how{font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);text-align:center;
   line-height:1.7}
 #start-gate .sg-sub{font-size:13px;font-weight:800;letter-spacing:4px;text-transform:uppercase;
@@ -75,6 +87,7 @@ canvas { display: block; will-change: transform; }
 <div id="start-gate">
   <div class="sg-card">
     <div class="sg-title">TWO PACS</div>
+    <div class="sg-motif"><span class="sg-pac"></span><span class="sg-dot"></span><span class="sg-dot"></span><span class="sg-dot cherry"></span></div>
     <div class="sg-how">Move both pacs to eat every cherry.<br>Don't get caught by a ghost.</div>
     <div class="sg-sub">▶ Tap to start</div>
   </div>
@@ -303,23 +316,24 @@ function easeOutCubic(t){return 1-Math.pow(1-t,3);}
 const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const DPR=window.devicePixelRatio||1;
 let CELL=64;
-function setupCanvas(){if(!gs)return;const maxW=Math.min(window.innerWidth-20,window.innerHeight-200,360);CELL=Math.floor(maxW/gs.cols);const W=CELL*gs.cols,H=CELL*gs.rows;canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);const cc=document.getElementById('cc');cc.width=W*DPR;cc.height=H*DPR;cc.style.width=W+'px';cc.style.height=H+'px';const hc=document.getElementById('hint-arrow');hc.width=W*DPR;hc.height=H*DPR;hc.style.width=W+'px';hc.style.height=H+'px';}
+function setupCanvas(){if(!gs)return;CELL=Math.max(16,Math.min(Math.floor((window.innerWidth-40)/gs.cols),Math.floor((window.innerHeight-240)/gs.rows),150));const W=CELL*gs.cols,H=CELL*gs.rows;canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);const cc=document.getElementById('cc');cc.width=W*DPR;cc.height=H*DPR;cc.style.width=W+'px';cc.style.height=H+'px';const hc=document.getElementById('hint-arrow');hc.width=W*DPR;hc.height=H*DPR;hc.style.width=W+'px';hc.style.height=H+'px';}
 function lerp(a,b,t){return a+(b-a)*t;}
 
 let _gridCache=null,_gridCacheKey='';
 function drawGrid(){
   const W=CELL*gs.cols,H=CELL*gs.rows;
-  const key=`${W}x${H}`;
-  if(_gridCache&&_gridCacheKey===key){ctx.drawImage(_gridCache,0,0);return;}
-  const oc=document.createElement('canvas');oc.width=W;oc.height=H;
-  const c2=oc.getContext('2d');
+  const key=`${W}x${H}x${DPR}`;
+  if(_gridCache&&_gridCacheKey===key){ctx.drawImage(_gridCache,0,0,W,H);return;}
+  // Render the grid cache at full device resolution so it stays crisp on hi-DPI / 4K.
+  const oc=document.createElement('canvas');oc.width=Math.round(W*DPR);oc.height=Math.round(H*DPR);
+  const c2=oc.getContext('2d');c2.scale(DPR,DPR);
   c2.fillStyle='#05050a';c2.fillRect(0,0,W,H);
   for(let c=0;c<gs.cols;c++)for(let r=0;r<gs.rows;r++){c2.fillStyle=(c+r)%2===0?'rgba(0,229,255,.018)':'rgba(180,79,255,.014)';c2.fillRect(c*CELL,r*CELL,CELL,CELL);}
   c2.strokeStyle='rgba(0,229,255,.07)';c2.lineWidth=0.5;
   for(let r=1;r<gs.rows;r++){c2.beginPath();c2.moveTo(0,r*CELL);c2.lineTo(W,r*CELL);c2.stroke();}
   for(let c=1;c<gs.cols;c++){c2.beginPath();c2.moveTo(c*CELL,0);c2.lineTo(c*CELL,H);c2.stroke();}
   c2.strokeStyle='rgba(0,229,255,.22)';c2.lineWidth=1.5;c2.strokeRect(.75,.75,W-1.5,H-1.5);
-  _gridCache=oc;_gridCacheKey=key;ctx.drawImage(oc,0,0);
+  _gridCache=oc;_gridCacheKey=key;ctx.drawImage(oc,0,0,W,H);
 }
 function drawBlock(x,y){const px=x*CELL+3,py=y*CELL+3,s=CELL-6;ctx.fillStyle='#0e0a1a';ctx.fillRect(px,py,s,s);ctx.strokeStyle='#b44fff';ctx.lineWidth=1.5;ctx.strokeRect(px,py,s,s);const g=ctx.createRadialGradient(px+s/2,py+s/2,0,px+s/2,py+s/2,s*.7);g.addColorStop(0,'rgba(180,79,255,.18)');g.addColorStop(1,'rgba(180,79,255,0)');ctx.fillStyle=g;ctx.fillRect(px,py,s,s);ctx.strokeStyle='rgba(180,79,255,.7)';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(px+7,py+7);ctx.lineTo(px+s-7,py+s-7);ctx.moveTo(px+s-7,py+7);ctx.lineTo(px+7,py+s-7);ctx.stroke();ctx.lineCap='butt';}
 function drawCherry(x,y,now){const cx=x*CELL+CELL/2,cy=y*CELL+CELL/2,pulse=.85+.15*Math.sin(now*.0035+x*1.2+y*.9),r=CELL*.215*pulse;const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.4);grd.addColorStop(0,'rgba(255,34,85,.28)');grd.addColorStop(1,'rgba(255,34,85,0)');ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,cy,r*2.4,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#44cc22';ctx.lineWidth=1.5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(cx,cy-r*.9);ctx.quadraticCurveTo(cx+r*.7,cy-r*1.8,cx+r*.4,cy-r*2.4);ctx.stroke();ctx.lineCap='butt';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#ff2255';ctx.fill();ctx.strokeStyle='rgba(255,100,140,.5)';ctx.lineWidth=1;ctx.stroke();ctx.beginPath();ctx.arc(cx-r*.33,cy-r*.33,r*.3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.52)';ctx.fill();}

@@ -13,7 +13,7 @@ html,body{width:100%;height:100%;background:#050508;color:#e8e8f0;
   justify-content:center;overflow:hidden;touch-action:none;
   padding-top:var(--sat);padding-bottom:var(--sab)}
 #wrap{display:flex;flex-direction:column;align-items:center;
-  gap:5px;padding:6px 0 4px;padding-top:52px;width:100%;max-width:430px;position:relative}
+  gap:5px;padding:6px 0 4px;padding-top:52px;width:100%;max-width:680px;position:relative}
 #hud{display:flex;justify-content:space-between;align-items:baseline;
   width:100%;letter-spacing:2px;user-select:none;padding:0 8px}
 #title{font-size:17px;letter-spacing:3px;color:#fff;white-space:nowrap;
@@ -412,12 +412,12 @@ const TUTORIAL_LEVELS = 3;
 
 const _vw = document.documentElement.clientWidth || window.innerWidth;
 const _vh = document.documentElement.clientHeight || window.innerHeight;
-let CELL_W = Math.floor((Math.min(_vw - 48, 400) - LABEL_W) / COLS);
+let CELL_W = Math.floor((Math.min(_vw - 48, 640) - LABEL_W) / COLS);
 const _safeT = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')||'0')||0;
 const _safeB = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab')||'0')||0;
 const _uiBudget = 160;
 const _availH = _vh - _safeT - _safeB - _uiBudget - HDR_H - TAREA_H - DIV_H;
-let CELL_H = Math.max(42, Math.min(Math.floor(_availH / ROWS), 64));
+let CELL_H = Math.max(42, Math.min(Math.floor(_availH / ROWS), 110));
 let _measured = false;
 let CW = LABEL_W + COLS * CELL_W;
 let MAIN_Y = HDR_H;
@@ -435,6 +435,19 @@ function resizeCanvas(showTarget) {
   canvas.style.height = CH + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
+
+// Recompute the grid metrics from the current viewport and re-fit the canvas.
+// The draw() loop runs every frame, so it repaints at the new size automatically.
+function recomputeMetrics() {
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  const vh = document.documentElement.clientHeight || window.innerHeight;
+  CELL_W = Math.floor((Math.min(vw - 48, 640) - LABEL_W) / COLS);
+  const availH = vh - _safeT - _safeB - _uiBudget - HDR_H - TAREA_H - DIV_H;
+  CELL_H = Math.max(42, Math.min(Math.floor(availH / ROWS), 110));
+  CW = LABEL_W + COLS * CELL_W;
+  resizeCanvas(gs ? gs.lvl < TUTORIAL_LEVELS : true);
+}
+window.addEventListener('resize', recomputeMetrics);
 
 let ac = null;
 let _noiseBuf = null;
@@ -1241,7 +1254,9 @@ function draw(ts) {
     ctx.fillRect(1,y+1,LABEL_W-5,CELL_H-2);
     ctx.fillStyle=labelGlow ? '#fff' : inst.col;
     if(labelGlow){ ctx.shadowColor=inst.shadow; ctx.shadowBlur=14; }
-    ctx.font=`${Math.max(13, Math.floor(CELL_H*0.32))}px VT323`;
+    // Cap at 20px so 5-letter names always fit the fixed-width label column
+    // (the cell can be much taller now, but LABEL_W stays 56).
+    ctx.font=`${Math.max(13, Math.min(20, Math.floor(CELL_H*0.32)))}px VT323`;
     ctx.globalAlpha=0.95;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(inst.n,(LABEL_W-5)/2,y+CELL_H/2);
