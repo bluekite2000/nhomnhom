@@ -2253,358 +2253,358 @@ function resetGame() {
 // n=net  b=ball  /=fwd mirror  \=bwd mirror  #=block
 // w=water  m=mud  h=hole  *=bomb  .=empty
 const PUZZLES = [
-`. # . b . .
-. . # . . b
-. . . . . .
-. n .  . .
-. . b . . .
-. . . . h .`,
-`h . b . . .
-. . . h n .
-. . . . / .
-. . . . . .
-b  . . . #
-. . . . . b`,
-`. . . h . b
- . . . . .
-n * . . . .
-. . . . . .
-h . . . . .
-. . b m . b`,
-` . . . . .
-. . . * b h
-n . . . . .
-h . . . . b
-. . . . / .
-. b . . . .`,
-`h . . . . #
-.  . . . n
-. . . . h h
-. . . . . b
-. b . . . .
-b . . . . .`,
-`b . b / . b
- . h . . .
-. . . . . .
-. . . . n .
-. / . . . .
-. . . . . .`,
-`. h . . . .
-. . n # b .
-.  . . . .
-. . . . . .
-. . . .  b
-b . . . . #`,
-`. . h . . .
-. . . . . .
-b . . . . b
-. . # n . .
-. . m . . .
-h b . . h `,
-` . b . . .
-. . h . h b
-. b . . . .
-. . . . n .
-m  . . . h
-. . . . . .`,
-`h . . . . .
-. . . . . .
-b . . h b b
-. n . .  .
-. # . . . .
-. . . . # .`,
-`. . . . . .
+`/ . . . . .
 . . . . . .
 . . . . b .
+h n *  b .
+. h . . . .
+. . . . b .`,
+`. h . . . .
+. h . . . .
+. / . b . .
+. #  b . .
+n . * . . .
+. . .  m b`,
+`. b . . . .
+. # . b . /
+. . b / . .
+. .  . . .
+/ . . n . #
+.  . . . .`,
+`b b . . . .
+. . . . . /
+. / # . . .
+. . . . . .
+. . n . . .
+ . . . . .`,
+`b b . . . .
+. . . . / .
+# . . . n .
+. . . . h . . . . . .
+. b . . . .`,
+` . . . b b
+. . b . # h
+. . . / . .
+. . . . . n
+. . h . . .
+. .  . . .`,
+`. . . . . .
+. . . . . .
+ b b . . .
+. / # b . h
+. . n # . .
+. . . . . .`,
+`b * . . . .
+. . . . . b
+. n . h . /
+/ . . . . .
+. . . . . .
+. . b . . .`,
+`. . b . m b
+. . . . . *
 h . . . . .
-n . . . * .
-h b . . b .`,
+n . . . . .
+h b . . . .
+. . . . . .`,
 `. h . . . .
 . . . . . .
 . . . . . h
 n . . . . .
 . / . b . b
 h b . . . .`,
-`. h . b . .
+`. . . # . b
+* . . . b /
+. . h . / .
+b . . . . .
+. . . n . .
+. . . . . .`,
+`. . . . b .
+. # . h . .
+. . . . b .
+b . . . . .
+. . . . h h
+/ . . . . n`,
+`. . # n . /
+. . b . . .
 . . . . . .
-. . . . . h
-. n . . . .
-b . . . / b
-/ . # . . .`,
-`. b . b . /
-h h . . . .
+b . .  . .
 . . . . . .
-. / b h . .
-. # # . . .
-. . . n . .`,
+. . . . . .`,
 `. . . . . #
 b . . b / .
 . .  h . .
 h . . . . n
 . . . . . /
 . . b . . .`,
-`. . . h . b
-. * . b . .
+`. # . . . .
 . . . . . .
-. . / . . .
-. n h . . b
-. . .  . .`,
-`. . b b # .
+. n . h b b
+. m . .  .
 . . . . . .
-. . . . . .
-. . b . . .
-. . . h n .
-. . . . . `,
+. . . . . .`,
 `. . . n / b
 . h . . . /
 / . . . . .
 b . . . . .
 . b . h . .
 . . .  . .`,
-`# . . h . .
- . . . . .
-. . n . . .
+`. . . . . .
+. . . n h .
+h . .  . h
+b . . . . .
+. / . . . b
+. . . . . b`,
+`.  . . . .
+b . . . . /
+b h . . . .
 . . . . . .
-. . h b h .
-. b . . b .`,
-`. . . . / .
-. . n . . .
+* # n . . .
+. . . . b .`,
+`. . . . . .
+. . . b . .
+b . / . . .
+h . n . . .
 . . . . . .
-. b h . b .
-. / . . . .
 . . . . . .`,
+`. . b . / .
+. . b / . .
+b . / . . .
+. * . . . n
+. . . . . .
+/ . . . . .`,
 `/ . . . . *
 h . n . . .
 . . . . . b
 . . . . . .
 . . h b . .
 . . . . b .`,
-`b h . b . .
+`b b * . . .
+b h . . . .
 . . . . . .
-b . h . . .
+h . . . . h
 . . . . . .
-. h n . . .
-. . * . . .`,
+. . . n . .`,
 `. . . . b /
 h / n . . .
 . . h . . b
 . . . h . .
 . . b . . .
 . . . / . .`,
-`. . . . . .
+`/ . * . . .
+. . n # . .
+. b . . . .
+. . h . . b
 . . . . . b
-. n . . . .
-. . . h . .
-. . . . . #
-. h . b . b`,
+. . . . . .`,
+`. h . . . .
+. . . . . b
+. . . . . .
+. n # . . .
+h . . . b .
+* . . b . .`,
 `b . . b # .
 . . b . . .
 h . h / . .
 . . . . . .
 . . . n . .
 . . . . . .`,
-`b . . . . *
-. . . . . b
-. . h b . .
-. . . h . .
-. . . . . h
-. # . n . .`,
+`b . . . * .
+. . # . . .
+. . . . . .
+. . h n . .
+b h b . . .
+. h . . . .`,
+`. / . . . b
+. b . h . .
+. . . . . .
+. b . . . .
+. . . . h h
+. # . . . n`,
 `. n . . . .
 . h . . . .
 . . # # . .
 h . . b . h
 . . b . . .
 . . . . * b`,
-`h . . b . .
-. . . b . .
-h . b . . . . . . . .
-. n # . . #
-. . . * . .`,
-`. # . n . h
-. . # . . .
-. . . * . .
-. b b h . .
-. . . b . .
-. . .  . .`,
-`. . . . . *
-. . . n . .
-h b b . . .
-. . . h . .
-. h . . . .
-. . . b . .`,
-`. . b h . .
+`n . / . b .
 . . h . . .
-b . . . . .
-b h n . . .
+. / . b . .
+. # . . b .
+. . .  . .
+. h . . * .`,
+`. . . . . /
 . . . . . .
-. . . . . h`,
-`. h b b b .
-. . . # . .
-. n * . . .
-. . . . . h
-. . . . . .
-. . . . . .`,
-`. b . b . h
-. . . / . .
-. # h . . .
-. b . . . .
-* . . n . .
-. . . . . .`,
-`. # . b . .
-. . b . . .
-. . h . b .
-. . . . . .
-/ . . h . .
-n . . h . .`,
-`. h . b . /
-. n . . . .
-h . # . . .
-. h b . . .
-. . h . . .
-. . . . b .`,
-`. . . . h b
-. n # . . .
+. . n . . .
+. b . . / b
+. / . . . .
+. . . * b .`,
+`b b . . h .
 . . / . . b
-. h . . . .
-. b . . . .
-# . . . . .`,
-`. h . . . .
+m . . / n .
+h / . . . .
 . . . . . .
+. . . . . .`,
+`b . . . . .
+. . / . . h
+h . n . . .
+. . h b . .
+. . . . . b
+. . . . . .`,
+`. . h . . .
+b . . h . b
 . . . . . .
-b b . h . .
-. . . # . .
-b . # . n h`,
-`# . . h . .
-# . . . / .
-. b . / . .
-. h b h . b
-/ . h . . h
-. . . . n .`,
-`. h . . . .
-. # n . h .
-. . # . b .
 . . . . . .
 . . . . b .
-. . b # . .`,
-`. . . . h .
-b . / . . .
+/ . n . # .`,
+`h b b . . .
+. . . n # /
+. . . . . .
+. . . h . .
+. . . . . b
+. . * . . .`,
+`. . / . . n
+. . . . h .
+. . . . b *
+b . . h . /
+b . # . . .
+. . . . . .`,
+`. b . . . .
+. . . # . h
+. b . . * .
+. . . . . .
+. h h . n .
+h . . m . b`,
+`b # . . . .
+m . . . . h
+. b . . . .
+. b . . . .
+. . . . . .
+. . # n . h`,
+`b . . m . .
+. n . . . .
+h . h / # .
+. . . . . .
+b # . . . .
+. . . b * .`,
+`. . # b h .
+. . # . . .
+. / b . . .
+. . . . . .
+. * . . . /
+n h . . b .`,
+`. . . . . *
+. b . # . .
+. . . # . .
+b b # . n .
+. . . . . .
+. . h . . .`,
+`h . / . * .
 . . . . n .
+b . m . . h
+. . . . h .
+b . . . . .
+. # b .  .`,
+`. h . . . .
+n . * . . .
 h . . . . .
-. . b . . .
-. b . / . .`,
+b b . . . .
+. . . . . .
+. b . . . .`,
 `. . . . . .
 . . . . . b
 h . . . . .
 . * . . . .
 . . . h b m
 n . h . . b`,
-`. . . . . .
-. . . b b .
-b . h . / .
-. . . * . .
-h . . . n .
-. . . . . h`,
-`. h . . . .
-b . . . . .
-b b . . . h
-h h . . . .
-. . . . . n
-. . . . . .`,
-`. b . . . .
+`. . . . b b
 . . . . . .
-. . . / # .
-. b . . . .
-. . / n . .
-. b . . . h`,
-`. . . b b .
-. . . . / .
-# . . . n h
+h . * . . .
 . . . . h .
-. . . . . .
-. . . b . .`,
-`. . . b . .
-. . . . . .
-h . . . . b
-. . h . h b
-. . n . . #
+. h . b . .
+n . . h . .`,
+`. . . # . .
+. n . h b .
+. * . h . b
+/ . . . m .
+b . . . . .
 . . . . . .`,
-`. . . h . .
-. h . . . b
-. . n . h .
-. . / b . .
+`. h . . . .
+. b . . . .
+h . . . . .
+. . n * . .
+b . . . # .
+. h . b . .`,
+`h . . . b .
 . . . . . .
-. # . b . .`,
+. . h . . m
+. . . # . .
+. n . h . b
+. . . / . b`,
 `b * . . h .
 . . . . . b
 . . b # . m
 h . . . h .
 n . . . . .
 h . . / . .`,
-`h b b . . /
-. # . . / .
-. . # . . .
-. . b . . .
-. n . . . .
-. . . . . .`,
-`. . b . . /
-. . . . h .
-. b . / . .
- b . h n .
-. h . . . .
-. . . . . .`
+`. . . # . .
+. . . / . b
+. . h . b .
+. n . . # .
+. . . h . b
+. . . * . .`
 ];
 
 const PUZZLE_HINTS = [
-[{ballId:2,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
-[{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'down'}],
-[{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'down'}],
-[{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:1,dir:'down'}],
-[{ballId:0,dir:'down'},{ballId:2,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}],
-[{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:2,dir:'up'},{ballId:2,dir:'right'}],
-[{ballId:1,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:1,dir:'down'},{ballId:2,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'right'},{ballId:2,dir:'up'},{ballId:1,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
+[{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
+[{ballId:2,dir:'down'},{ballId:2,dir:'left'},{ballId:2,dir:'up'}],
+[{ballId:0,dir:'down'},{ballId:1,dir:'down'},{ballId:1,dir:'down'},{ballId:1,dir:'right'}],
+[{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}],
+[{ballId:0,dir:'down'},{ballId:1,dir:'down'},{ballId:0,dir:'up'},{ballId:0,dir:'right'}],
+[{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:0,dir:'right'},{ballId:0,dir:'down'}],
+[{ballId:0,dir:'left'},{ballId:1,dir:'left'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
 [{ballId:0,dir:'left'},{ballId:0,dir:'up'},{ballId:2,dir:'up'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
-[{ballId:2,dir:'down'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
-[{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'right'}],
+[{ballId:1,dir:'left'},{ballId:0,dir:'down'},{ballId:2,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'right'}],
+[{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
+[{ballId:0,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'up'}],
 [{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'down'}],
-[{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:2,dir:'down'},{ballId:2,dir:'left'},{ballId:2,dir:'up'}],
-[{ballId:2,dir:'down'},{ballId:2,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
 [{ballId:0,dir:'left'},{ballId:2,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'},{ballId:0,dir:'right'}],
-[{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:2,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'right'}],
-[{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:1,dir:'right'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'left'},{ballId:1,dir:'right'},{ballId:1,dir:'up'}],
+[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
+[{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
+[{ballId:1,dir:'down'},{ballId:1,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
 [{ballId:0,dir:'up'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
-[{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
+[{ballId:1,dir:'right'},{ballId:0,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'right'},{ballId:2,dir:'down'},{ballId:2,dir:'left'}],
 [{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:1,dir:'up'},{ballId:2,dir:'left'},{ballId:1,dir:'left'},{ballId:1,dir:'up'}],
-[{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'down'}],
+[{ballId:0,dir:'up'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'left'},{ballId:2,dir:'down'}],
+[{ballId:0,dir:'down'},{ballId:1,dir:'down'},{ballId:2,dir:'left'},{ballId:1,dir:'left'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
 [{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:2,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
+[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
+[{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:0,dir:'left'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'}],
 [{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'right'},{ballId:1,dir:'left'},{ballId:2,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'down'}],
-[{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'up'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
-[{ballId:0,dir:'left'},{ballId:1,dir:'right'},{ballId:2,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'},{ballId:0,dir:'left'}],
-[{ballId:2,dir:'down'},{ballId:1,dir:'right'},{ballId:0,dir:'right'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
-[{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:1,dir:'down'},{ballId:1,dir:'down'},{ballId:2,dir:'left'},{ballId:1,dir:'up'},{ballId:1,dir:'right'}],
-[{ballId:0,dir:'right'},{ballId:1,dir:'left'},{ballId:2,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
-[{ballId:0,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:2,dir:'up'},{ballId:0,dir:'right'},{ballId:0,dir:'up'},{ballId:0,dir:'left'}],
-[{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:2,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'right'}],
-[{ballId:0,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'right'},{ballId:2,dir:'down'}],
-[{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:0,dir:'up'},{ballId:0,dir:'right'},{ballId:0,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
-[{ballId:1,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'up'},{ballId:2,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
-[{ballId:0,dir:'up'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:2,dir:'right'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'right'}],
+[{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'up'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'left'},{ballId:1,dir:'left'},{ballId:2,dir:'left'},{ballId:2,dir:'up'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'right'},{ballId:1,dir:'down'}],
+[{ballId:1,dir:'down'},{ballId:2,dir:'down'},{ballId:2,dir:'left'},{ballId:2,dir:'up'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
+[{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:2,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'}],
+[{ballId:2,dir:'up'},{ballId:2,dir:'left'},{ballId:1,dir:'down'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'down'}],
+[{ballId:0,dir:'right'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'},{ballId:2,dir:'down'},{ballId:2,dir:'right'},{ballId:2,dir:'up'}],
+[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'right'},{ballId:1,dir:'down'}],
+[{ballId:0,dir:'down'},{ballId:1,dir:'right'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
+[{ballId:0,dir:'right'},{ballId:0,dir:'right'},{ballId:1,dir:'down'},{ballId:2,dir:'right'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'left'}],
+[{ballId:1,dir:'down'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:0,dir:'left'},{ballId:0,dir:'down'}],
+[{ballId:0,dir:'up'},{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'right'},{ballId:2,dir:'down'}],
+[{ballId:0,dir:'right'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'right'}],
+[{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:0,dir:'right'},{ballId:0,dir:'up'},{ballId:0,dir:'left'},{ballId:2,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'left'}],
 [{ballId:1,dir:'up'},{ballId:1,dir:'right'},{ballId:2,dir:'up'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'down'}],
-[{ballId:0,dir:'up'},{ballId:1,dir:'up'},{ballId:2,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'}],
-[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:2,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:1,dir:'up'}],
-[{ballId:0,dir:'down'},{ballId:1,dir:'right'},{ballId:2,dir:'up'},{ballId:2,dir:'right'},{ballId:0,dir:'down'},{ballId:2,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}],
-[{ballId:0,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:2,dir:'down'},{ballId:1,dir:'down'},{ballId:2,dir:'up'},{ballId:2,dir:'right'}],
-[{ballId:0,dir:'down'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:2,dir:'left'},{ballId:2,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}],
-[{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:1,dir:'up'},{ballId:2,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'right'}],
+[{ballId:0,dir:'left'},{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:1,dir:'right'},{ballId:1,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
+[{ballId:0,dir:'down'},{ballId:0,dir:'down'},{ballId:1,dir:'down'},{ballId:2,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'},{ballId:1,dir:'left'},{ballId:1,dir:'up'}],
+[{ballId:0,dir:'right'},{ballId:0,dir:'up'},{ballId:1,dir:'right'},{ballId:1,dir:'up'},{ballId:2,dir:'up'},{ballId:0,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
+[{ballId:0,dir:'right'},{ballId:1,dir:'up'},{ballId:1,dir:'up'},{ballId:1,dir:'left'},{ballId:2,dir:'up'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'down'}],
 [{ballId:1,dir:'down'},{ballId:1,dir:'down'},{ballId:2,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'down'},{ballId:0,dir:'left'}],
-[{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:0,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:2,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}],
-[{ballId:0,dir:'left'},{ballId:1,dir:'left'},{ballId:2,dir:'down'},{ballId:2,dir:'right'},{ballId:1,dir:'down'},{ballId:1,dir:'right'},{ballId:0,dir:'down'},{ballId:0,dir:'right'},{ballId:0,dir:'up'}]
+[{ballId:1,dir:'right'},{ballId:2,dir:'down'},{ballId:2,dir:'left'},{ballId:1,dir:'down'},{ballId:1,dir:'left'},{ballId:0,dir:'down'},{ballId:0,dir:'left'},{ballId:0,dir:'up'}]
 ];
 
 
