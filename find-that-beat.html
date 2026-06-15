@@ -38,6 +38,11 @@ canvas{display:block;touch-action:none;-webkit-tap-highlight-color:transparent}
 #nextBtn{border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.25);pointer-events:none}
 #nextBtn.unlocked{border-color:rgba(68,255,136,.65);color:#44ff88;pointer-events:all}
 #inspo{font-size:12px;letter-spacing:1px;color:rgba(255,255,255,.45);margin-top:2px;text-align:center;font-family:'VT323',monospace}
+/* On narrow screens the centered wrap rides up under the fixed back button —
+   indent the HUD so "LV x/50" clears it, and tighten the controls so every
+   button (incl. NEXT) fits on one row. */
+@media(max-width:760px){#hud{padding-left:56px!important;box-sizing:border-box}}
+@media(max-width:480px){.btn{padding:7px 8px;font-size:14px}#ctrl{gap:4px}}
 #ov{position:fixed;inset:0;background:rgba(4,4,8,.96);display:flex;
   flex-direction:column;align-items:center;justify-content:center;
   gap:14px;z-index:20;pointer-events:none;opacity:0;transition:.18s}
@@ -119,7 +124,7 @@ canvas{display:block;touch-action:none;-webkit-tap-highlight-color:transparent}
   <div id="mode-bar"></div>
   <div id="cw"><canvas id="gc"></canvas></div>
   <div id="ctrl">
-    <button class="btn" id="prevBtn" onclick="previewTarget()">▶ LISTEN TO BEAT</button>
+    <button class="btn" id="prevBtn" onclick="previewTarget()" title="Listen to beat" aria-label="Listen to beat">▶</button>
     <button class="btn" id="hintBtn" onclick="showHint()">HINT(3)</button>
     <button class="btn" id="undoBtn" onclick="doUndo()">UNDO</button>
     <button class="btn" id="resetBtn" onclick="initLevel(gs.lvl)">RESET</button>
