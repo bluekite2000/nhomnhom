@@ -17,7 +17,8 @@ html,body{background:#1a1a18;display:flex;flex-direction:column;align-items:cent
   padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;}
 .wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px}
 .title{font-family:'VT323',monospace;font-size:clamp(26px,5vw,44px);color:#76b900;
-  text-shadow:0 0 12px #76b90077,0 0 30px #76b90033;letter-spacing:8px;line-height:1}
+  text-shadow:0 0 12px #76b90077,0 0 30px #76b90033;letter-spacing:8px;line-height:1;
+  padding-left:8px /* offset trailing letter-spacing so glyphs sit dead-center */}
 .toprow{display:flex;gap:7px;align-items:stretch;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .badge{background:#111310;border:1px solid #2a3a1a;padding:5px 12px;font-size:11px;
   border-radius:1px;min-width:150px;text-align:center;letter-spacing:1px;
@@ -80,6 +81,10 @@ canvas{display:block;touch-action:none;border-radius:3px;
 <script>
 
 const TILE=60,COLS=8,ROWS=8,CW=COLS*TILE,CH=ROWS*TILE;
+// Inset the playable grid inside the PCB so chips/wires never hug the milled
+// edge or the corner screws. PCB texture still fills the full board; only the
+// grid content (chips, wires, pins, obstacles) is scaled into this margin.
+const PAD=24, GINS=(CW-2*PAD)/CW;
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const DPR=window.devicePixelRatio||1;
 canvas.width=CW*DPR;canvas.height=CH*DPR;
@@ -2440,6 +2445,8 @@ function render(){
   rafId=null;
   ctx.clearRect(0,0,CW,CH);
   drawBg();
+  ctx.save();
+  ctx.translate(PAD,PAD);ctx.scale(GINS,GINS); // inset grid content within the PCB
   const chipOv=drag
     ?{id:drag.cid,col:(drag.curX-drag.offPxX)/TILE,row:(drag.curY-drag.offPxY)/TILE,
        w:gchip(drag.cid).w,h:gchip(drag.cid).h,
@@ -2469,6 +2476,7 @@ function render(){
   // reuse it instead of paying for a second O(n²) violation pass per frame
   if(!solved)drawXings(liveCrossings);
   if(winParts.length>0)drawWin();
+  ctx.restore();
   if(liveCrossings.length>0||winParts.length>0||drag||animating)
     rafId=requestAnimationFrame(render);
 }
@@ -2477,7 +2485,8 @@ function kick(){if(!rafId)rafId=requestAnimationFrame(render);}
 function evXY(e){
   const r=canvas.getBoundingClientRect(),sc=CW/r.width;
   const s=e.touches?e.touches[0]:e;
-  return{x:(s.clientX-r.left)*sc,y:(s.clientY-r.top)*sc};
+  // Map client px -> canvas space, then undo the grid inset to get grid coords.
+  return{x:((s.clientX-r.left)*sc-PAD)/GINS,y:((s.clientY-r.top)*sc-PAD)/GINS};
 }
 function chipAt(x,y){
   for(let i=chips.length-1;i>=0;i--){
